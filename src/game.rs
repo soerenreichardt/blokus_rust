@@ -1,9 +1,9 @@
 pub struct Game {
-    board: Board,
+    pub(crate) board: Board,
     players: Players
 }
 
-struct Board {
+pub(crate) struct Board {
     width: usize,
     height: usize,
     tiles: Vec<Vec<State>>
@@ -16,7 +16,7 @@ enum State {
 }
 
 #[derive(Default)]
-struct Players {
+pub struct Players {
     players: Vec<Player>,
     active_player_index: usize
 }
@@ -28,18 +28,26 @@ struct Piece {
     blocks: Vec<Position>
 }
 
-#[derive(Copy, Clone)]
-struct Position {
-    x: usize,
-    y: usize
+#[derive(Copy, Clone, Default)]
+pub struct Position {
+    pub x: usize,
+    pub y: usize
 }
 
 impl Game {
-    fn new(width: usize, height: usize, players: Players)  -> Self {
+    pub fn new(width: usize, height: usize, players: Players) -> Self {
         Game {
             board: Board::new(width, height),
             players
         }
+    }
+
+    pub fn width(&self) -> usize {
+        self.board.width
+    }
+
+    pub fn height(&self) -> usize {
+        self.board.height
     }
 }
 
@@ -76,7 +84,7 @@ impl Board {
 }
 
 impl Position {
-    fn check_within_bounds(&self, width: usize, height: usize) -> Result<(), String> {
+    pub fn check_within_bounds(&self, width: usize, height: usize) -> Result<(), String> {
         match self {
             Position { x, y } if *x >= width || *y >= height => Err("Out of bounds".to_string()),
             _ => Ok(())
