@@ -12,6 +12,7 @@ use crate::game::{Board, Game, Position, State};
 #[derive(Default)]
 struct App {
     cursor: Cursor,
+    board_offset: Position,
     vertical_scroll_state: ScrollbarState,
     horizontal_scroll_state: ScrollbarState
 }
@@ -65,7 +66,7 @@ fn handle_events() -> io::Result<AppEvent> {
                     KeyCode::Up => return Ok(AppEvent::MoveUp),
                     KeyCode::Down => return Ok(AppEvent::MoveDown),
                     KeyCode::Left => return Ok(AppEvent::MoveLeft),
-                    KeyCode::Right => return Ok(AppEvent::MoveRight)
+                    KeyCode::Right => return Ok(AppEvent::MoveRight),
                     _ => ()
                 }
             }
@@ -74,17 +75,26 @@ fn handle_events() -> io::Result<AppEvent> {
     Ok(AppEvent::None)
 }
 
+const UI_OFFSET: u16 = 2;
+
 fn ui(frame: &mut Frame, game: &mut Game, app: &mut App) {
     let frame_size = frame.size();
 
-    let display_width = ((game.width() as u16) * 2) + 2;
-    let display_height = game.height() as u16 + 2;
+    let display_width = ((game.width() as u16) * 2) + UI_OFFSET;
+    let display_height = game.height() as u16 + UI_OFFSET;
 
     let width = display_width.min(frame_size.width);
     let height = display_height.min(frame_size.height);
     let board_render_area = Rect { x: 0, y: 0, width, height};
+
+    update_scrollbars(board_render_area, app);
+    render_scrollbars(frame, &game, &app, frame_size, display_width, display_height, width, height);
+
     render_board(frame, board_render_area, app, &game.board).expect("Error while board rendering");
 
+}
+
+fn render_scrollbars(frame: &mut Frame, game: &&mut Game, app: &&mut App, frame_size: Rect, display_width: u16, display_height: u16, width: u16, height: u16) {
     let remaining_width = display_width.saturating_sub(width);
     let remaining_height = display_height.saturating_sub(height);
 
@@ -93,8 +103,8 @@ fn ui(frame: &mut Frame, game: &mut Game, app: &mut App) {
             Scrollbar::new(ScrollbarOrientation::HorizontalBottom),
             frame_size,
             &mut app.horizontal_scroll_state
-                .viewport_content_length(width as usize)
-                .content_length(display_width as usize)
+                .viewport_content_length(game.width() - remaining_width as usize)
+                .content_length(game.width())
         )
     }
     if remaining_height > 0 {
@@ -102,8 +112,8 @@ fn ui(frame: &mut Frame, game: &mut Game, app: &mut App) {
             Scrollbar::new(ScrollbarOrientation::VerticalRight),
             frame_size,
             &mut app.vertical_scroll_state
-                .viewport_content_length(height as usize)
-                .content_length(display_height as usize)
+                .viewport_content_length(game.height() - remaining_height as usize)
+                .content_length(game.height())
         );
     }
 }
@@ -114,8 +124,8 @@ fn render_board(frame: &mut Frame, board_render_area: Rect, app: &mut App, board
     let width = board.width as i32;
     let height = board.height as i32;
 
-    let mut lines: Vec<Line<'_>> = vec![];
     let cursor_position = app.cursor.position;
+    let mut lines: Vec<Line<'_>> = vec![];
     for y in 0..height {
         let mut line = vec![];
         for x in 0..width {
@@ -132,11 +142,38 @@ fn render_board(frame: &mut Frame, board_render_area: Rect, app: &mut App, board
     }
 
     frame.render_widget(
-        Paragraph::new(lines).block(Block::default().borders(Borders::ALL).padding(Padding::zero())),
+        Paragraph::new(lines).scroll((app.board_offset.y as u16, app.board_offset.x as u16)).block(Block::default().borders(Borders::ALL).padding(Padding::zero())),
         board_render_area
     );
 
     Ok(())
+}
+
+fn update_scrollbars(board_render_area: Rect, app: &mut App) {
+    let rows_shown = board_render_area.height - UI_OFFSET;
+    let columns_shown = board_render_area.width - UI_OFFSET;
+
+    let cursor_position = app.cursor.position;
+
+    let relative_cursor_y = cursor_position.y - app.board_offset.y;
+    if relative_cursor_y as u16 >= rows_shown {
+        app.vertical_scroll_state = app.vertical_scroll_state.position(cursor_position.y as usize);
+        app.board_offset.y += 1;
+    }
+    if relative_cursor_y < 0 {
+        app.vertical_scroll_state = app.vertical_scroll_state.position(cursor_position.y as usize);
+        app.board_offset.y -= 2;
+    }
+
+    let relative_cursor_x = cursor_position.x - app.board_offset.x;
+    if relative_cursor_x as u16 >= columns_shown {
+        app.vertical_scroll_state = app.vertical_scroll_state.position(cursor_position.x as usize);
+        app.board_offset.x += 1;
+    }
+    if relative_cursor_x < 0 {
+        app.vertical_scroll_state = app.vertical_scroll_state.position(cursor_position.x as usize);
+        app.board_offset.x -= 2;
+    }
 }
 
 impl App {
