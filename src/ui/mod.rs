@@ -8,7 +8,7 @@ use crossterm::{
 use ratatui::{prelude::*, widgets::*};
 use ratatui::widgets::canvas::{Canvas, Rectangle};
 
-use crate::game::{Game, Position};
+use crate::game::{Board, Game, Position, State};
 
 #[derive(Default)]
 struct App {
@@ -21,8 +21,8 @@ struct App {
 #[derive(Default)]
 struct Cursor {
     position: Position,
-    max_x: usize,
-    max_y: usize
+    max_x: i32,
+    max_y: i32
 }
 
 enum AppEvent {
@@ -38,7 +38,7 @@ pub fn run(game: &mut Game) -> io::Result<()> {
     enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
-    let mut app = App::new(Cursor::new(game.width() * 2, game.height()));
+    let mut app = App::new(Cursor::new((game.width() * 2) as i32, game.height() as i32));
 
     loop {
         terminal.draw(|frame| ui(frame, game, &mut app))?;
@@ -84,7 +84,8 @@ fn ui(frame: &mut Frame, game: &mut Game, app: &mut App) {
 
     let width = display_width.min(frame_size.width);
     let height = display_height.min(frame_size.height);
-    render_board(frame, width, height, app);
+    let board_render_area = Rect { x: 0, y: 0, width, height};
+    render_board(frame, board_render_area, app, &game.board).expect("Error while board rendering");
 
     let remaining_width = display_width.saturating_sub(width);
     let remaining_height = display_height.saturating_sub(height);
@@ -105,47 +106,41 @@ fn ui(frame: &mut Frame, game: &mut Game, app: &mut App) {
             &mut app.vertical_scroll_state
                 .viewport_content_length(width as usize)
                 .content_length(display_width as usize)
-        )
+        );
     }
 }
 
-fn render_board(frame: &mut Frame, width: u16, height: u16, app: &mut App) {
-    let cursor_y = (app.board_offset.y + height as usize) as i16 - app.cursor.position.y as i16;
+const BLOCK: &str = "██";
+
+fn render_board(frame: &mut Frame, board_render_area: Rect, app: &mut App, board: &Board) -> Result<(), String> {
+    let width = board.width as i32;
+    let height = board.height as i32;
+    let cursor_y = (app.board_offset.y + height) - app.cursor.position.y;
     if cursor_y < 0 {
-        app.board_offset.y += cursor_y.abs() as usize;
-    } else if cursor_y as u16 > height {
-        app.board_offset.y -= (cursor_y as u16 - height) as usize;
+        app.board_offset.y += cursor_y.abs();
+    } else if cursor_y > height {
+        app.board_offset.y -= cursor_y - height;
+    }
+
+    let mut lines: Vec<Line<'_>> = vec![];
+    for y in 0..height {
+        let mut line = vec![];
+        for x in 0..width {
+            let color = match board.get_state_on_position(Position { x, y })? {
+                State::Free => Color::Gray,
+                State::Occupied(_) => Color::Red
+            };
+            line.push(Span::styled(BLOCK, Style::default().fg(color)))
+        }
+        lines.push(line.into());
     }
 
     frame.render_widget(
-        Canvas::default()
-            .block(Block::default().borders(Borders::ALL).title("Board"))
-            .marker(Marker::Dot)
-            .paint(|ctx| {
-                for x in (0..width).step_by(2) {
-                    for y in 0..height {
-                        ctx.draw(&Rectangle {
-                            x: x as f64 + 1.0,
-                            y: y as f64,
-                            width: 1.0,
-                            height: 1.0,
-                            color: Color::Black
-                        })
-                    }
-                }
-
-                ctx.draw(&Rectangle {
-                    x: app.cursor.position.x as f64,
-                    y: cursor_y as f64,
-                    width: 1.0,
-                    height: 1.0,
-                    color: Color::Red
-                });
-            })
-            .x_bounds([0.0, width as f64])
-            .y_bounds([0.0, height as f64]),
-        Rect { x: 0, y: 0, width, height }
+        Paragraph::new(lines).block(Block::default().borders(Borders::ALL)),
+        board_render_area
     );
+
+    Ok(())
 }
 
 impl App {
@@ -158,7 +153,7 @@ impl App {
 }
 
 impl Cursor {
-    fn new(max_x: usize, max_y: usize) -> Self {
+    fn new(max_x: i32, max_y: i32) -> Self {
         Cursor {
             max_x,
             max_y,
