@@ -28,10 +28,11 @@ struct Player {
 
 #[derive(Debug)]
 struct Piece {
-    blocks: Vec<Position>
+    blocks: Vec<Position>,
+    pivot: Position
 }
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct Position {
     pub x: i32,
     pub y: i32
@@ -93,6 +94,12 @@ impl Position {
             _ => Ok(())
         }
     }
+
+    pub fn rotate_around_pivot(&mut self, pivot_position: Position) {
+        let temp_x = self.x;
+        self.x = pivot_position.x + pivot_position.y - self.y;
+        self.y = pivot_position.y - pivot_position.x + temp_x;
+    }
 }
 
 impl std::ops::Add for Position {
@@ -106,12 +113,39 @@ impl std::ops::Add for Position {
     }
 }
 
+impl Piece {
+    fn new(blocks: Vec<Position>) -> Self {
+        let pivot = Self::find_pivot_position(&blocks);
+        Piece { blocks, pivot }
+    }
+
+    pub(crate) fn rotate(&mut self) {
+        for block in self.blocks.iter_mut() {
+            block.rotate_around_pivot(self.pivot)
+        }
+    }
+
+    fn find_pivot_position(blocks: &[Position]) -> Position {
+        let num_blocks = blocks.len();
+        let mut pivot_x = 0.0f64;
+        let mut pivot_y = 0.0f64;
+        for block in blocks {
+            pivot_x += block.x as f64 / num_blocks as f64;
+            pivot_y += block.y as f64 / num_blocks as f64;
+        }
+        Position {
+            x: pivot_x as i32,
+            y: pivot_y as i32
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn piece_1x1() -> Piece {
-        Piece { blocks: vec![Position { x: 0, y : 0 }]}
+        Piece::new(vec![Position { x: 0, y : 0 }])
     }
 
     #[test]
@@ -120,9 +154,20 @@ mod tests {
         let was_placed = board.place_piece(piece_1x1(), Position { x: 0, y: 0 }, 0).unwrap();
         assert!(was_placed);
 
-        assert_eq!(board.get_state_on_position(Position { x: 0, y: 0 }).unwrap(), State::Occupied);
+        assert_eq!(board.get_state_on_position(Position { x: 0, y: 0 }).unwrap(), State::Occupied(0));
 
         let was_placed = board.place_piece(piece_1x1(), Position { x: 0, y: 0 }, 0).unwrap();
         assert!(!was_placed)
+    }
+
+    #[test]
+    fn should_rotate_block() {
+        let mut piece = Piece::new(vec![Position { x: 0, y: 0 }, Position { x: 1, y: 0 }, Position { x: 2, y: 0 }]);
+
+        piece.rotate();
+        assert_eq!(piece.blocks, vec![Position { x: 1, y: -1}, Position { x: 1, y: 0}, Position { x: 1, y: 1}]);
+
+        piece.rotate();
+        assert_eq!(piece.blocks, vec![Position { x: 2, y: 0}, Position { x: 1, y: 0}, Position { x: 0, y: 0}]);
     }
 }
