@@ -1,14 +1,16 @@
 use std::io;
 use std::str::FromStr;
+use ratatui::prelude::Color;
 
-use crate::game::{Game, Piece, Players, Position};
+use crate::game::{Game, Piece, Player, Players, Position};
 
 mod game;
 mod ui;
 
 fn main() -> io::Result<()>{
     let piece_set = read_piece_set().unwrap();
-    let mut game = Game::new(16, 16, Players::default());
+    let players = Players::new(vec![Player { name: "Bob".to_string(), color: Color::Green, available_pieces: piece_set.clone() }]);
+    let mut game = Game::new(16, 16, players);
     ui::run(&mut game)
 }
 

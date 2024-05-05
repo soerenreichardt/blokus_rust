@@ -4,10 +4,8 @@ use ratatui::prelude::{Color, Line, Span, Style};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 
 use crate::game::{Game, Position, State};
-use crate::ui::{AppEvent, Cursor, Module, ModuleKind, UI_OFFSET};
+use crate::ui::{AppEvent, BLOCK, Cursor, Module, ModuleKind, UI_OFFSET};
 use crate::ui::cursor_scrollbar::CursorScrollbar;
-
-const BLOCK: &str = "██";
 
 pub struct BoardDisplay {
     cursor: Cursor,
@@ -35,7 +33,7 @@ impl Module for BoardDisplay {
         }
     }
 
-    fn render(&mut self, frame: &mut Frame, area: &Rect, game: &mut Game) {
+    fn render(&mut self, frame: &mut Frame, area: Rect, game: &mut Game) {
         let display_width = ((game.width() as u16) * 2) + UI_OFFSET;
         let display_height = game.height() as u16 + UI_OFFSET;
 

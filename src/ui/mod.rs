@@ -10,10 +10,13 @@ use ratatui::{prelude::*, widgets::*};
 
 use crate::game::{Game, Position};
 use crate::ui::board_display::BoardDisplay;
+use crate::ui::player_display::PlayerDisplay;
 
 mod cursor_scrollbar;
 mod board_display;
+mod player_display;
 
+const BLOCK: &str = "██";
 const UI_OFFSET: u16 = 2;
 
 #[derive(Default)]
@@ -23,13 +26,14 @@ struct App {
 
 pub trait Module {
     fn update(&mut self, event: AppEvent);
-    fn render(&mut self, frame: &mut Frame, area: &Rect, game: &mut Game);
+    fn render(&mut self, frame: &mut Frame, area: Rect, game: &mut Game);
     fn kind(&self) -> ModuleKind;
 }
 
 #[derive(Eq, Hash, PartialEq)]
 enum ModuleKind {
-    BoardDisplay
+    BoardDisplay,
+    PlayerDisplay
 }
 
 struct Cursor {
@@ -54,10 +58,10 @@ pub fn run(game: &mut Game) -> io::Result<()> {
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
     let mut app = App::default();
 
-    let horizontal = Layout::horizontal([Constraint::Percentage(70), Constraint::Percentage(30)]);
+    let horizontal = Layout::horizontal([Constraint::Max((game.width() * 2) as u16 + UI_OFFSET), Constraint::Max(20)]);
     let vertical = Layout::vertical([Constraint::Percentage(30), Constraint::Percentage(70)]);
-    let board_display = BoardDisplay::new(game.width(), game.height());
-    app.add_module(board_display);
+    app.add_module(BoardDisplay::new(game.width(), game.height()));
+    app.add_module(PlayerDisplay);
 
     loop {
         terminal.draw(|frame| {
@@ -65,7 +69,8 @@ pub fn run(game: &mut Game) -> io::Result<()> {
             let [player_area, piece_area] = vertical.areas(side_menu_area);
 
             let areas = vec![
-                (ModuleKind::BoardDisplay, board_area)
+                (ModuleKind::BoardDisplay, board_area),
+                (ModuleKind::PlayerDisplay, player_area)
             ].into_iter().collect::<HashMap<ModuleKind, Rect>>();
             app.render_modules(frame, game, areas)
         })?;
@@ -115,7 +120,7 @@ impl App {
 
     fn render_modules(&mut self, frame: &mut Frame, game: &mut Game, areas: HashMap<ModuleKind, Rect>) {
         for (kind, module) in self.modules.iter_mut() {
-            module.render(frame, areas.get(kind).unwrap(), game)
+            module.render(frame, *areas.get(kind).unwrap(), game)
         }
     }
 }

@@ -1,3 +1,6 @@
+use rand::random;
+use ratatui::style::Color;
+
 pub struct Game {
     pub(crate) board: Board,
     players: Players
@@ -15,18 +18,19 @@ pub enum State {
     Occupied(usize)
 }
 
-#[derive(Default)]
 pub struct Players {
     players: Vec<Player>,
     active_player_index: usize
 }
 
 #[derive(Default)]
-struct Player {
-    available_pieces: Vec<Piece>
+pub struct Player {
+    pub name: String,
+    pub color: Color,
+    pub available_pieces: Vec<Piece>
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Piece {
     blocks: Vec<Position>,
     pivot: Position
@@ -52,6 +56,14 @@ impl Game {
 
     pub fn height(&self) -> usize {
         self.board.height
+    }
+
+    pub fn players(&self) -> &[Player] {
+        &self.players.players
+    }
+
+    pub fn player_names(&self) -> Vec<&str> {
+        self.players.players.iter().map(|player| player.name.as_str()).collect()
     }
 }
 
@@ -136,6 +148,16 @@ impl Piece {
         Position {
             x: pivot_x as i32,
             y: pivot_y as i32
+        }
+    }
+}
+
+impl Players {
+    pub fn new(players: Vec<Player>) -> Self {
+        let active_player_index = random::<usize>() % players.len();
+        Players {
+            players,
+            active_player_index
         }
     }
 }
