@@ -27,7 +27,7 @@ struct Player {
 }
 
 #[derive(Debug)]
-struct Piece {
+pub struct Piece {
     blocks: Vec<Position>,
     pivot: Position
 }
@@ -114,7 +114,7 @@ impl std::ops::Add for Position {
 }
 
 impl Piece {
-    fn new(blocks: Vec<Position>) -> Self {
+    pub fn new(blocks: Vec<Position>) -> Self {
         let pivot = Self::find_pivot_position(&blocks);
         Piece { blocks, pivot }
     }
