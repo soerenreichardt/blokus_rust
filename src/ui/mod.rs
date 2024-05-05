@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{self, stdout};
 
 use crossterm::{
@@ -17,12 +18,18 @@ const UI_OFFSET: u16 = 2;
 
 #[derive(Default)]
 struct App {
-    modules: Vec<Box<dyn Module>>
+    modules: HashMap<ModuleKind, Box<dyn Module>>
 }
 
 pub trait Module {
     fn update(&mut self, event: AppEvent);
-    fn render(&mut self, frame: &mut Frame, game: &mut Game);
+    fn render(&mut self, frame: &mut Frame, area: &Rect, game: &mut Game);
+    fn kind(&self) -> ModuleKind;
+}
+
+#[derive(Eq, Hash, PartialEq)]
+enum ModuleKind {
+    BoardDisplay
 }
 
 struct Cursor {
@@ -46,11 +53,22 @@ pub fn run(game: &mut Game) -> io::Result<()> {
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
     let mut app = App::default();
+
+    let horizontal = Layout::horizontal([Constraint::Percentage(70), Constraint::Percentage(30)]);
+    let vertical = Layout::vertical([Constraint::Percentage(30), Constraint::Percentage(70)]);
     let board_display = BoardDisplay::new(game.width(), game.height());
     app.add_module(board_display);
 
     loop {
-        terminal.draw(|frame| app.render_modules(frame, game))?;
+        terminal.draw(|frame| {
+            let [board_area, side_menu_area] = horizontal.areas(frame.size());
+            let [player_area, piece_area] = vertical.areas(side_menu_area);
+
+            let areas = vec![
+                (ModuleKind::BoardDisplay, board_area)
+            ].into_iter().collect::<HashMap<ModuleKind, Rect>>();
+            app.render_modules(frame, game, areas)
+        })?;
 
         let event = poll_event()?;
         app.update_modules(event);
@@ -86,18 +104,18 @@ fn poll_event() -> io::Result<AppEvent> {
 
 impl App {
     fn add_module(&mut self, module: impl Module + 'static) {
-        self.modules.push(Box::new(module))
+        self.modules.insert(module.kind(), Box::new(module));
     }
 
     fn update_modules(&mut self, event: AppEvent) {
-        for module in self.modules.iter_mut() {
+        for (_, module) in self.modules.iter_mut() {
             module.update(event)
         }
     }
 
-    fn render_modules(&mut self, frame: &mut Frame, game: &mut Game) {
-        for module in self.modules.iter_mut() {
-            module.render(frame, game)
+    fn render_modules(&mut self, frame: &mut Frame, game: &mut Game, areas: HashMap<ModuleKind, Rect>) {
+        for (kind, module) in self.modules.iter_mut() {
+            module.render(frame, areas.get(kind).unwrap(), game)
         }
     }
 }

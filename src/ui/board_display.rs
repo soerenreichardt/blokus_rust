@@ -4,7 +4,7 @@ use ratatui::prelude::{Color, Line, Span, Style};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 
 use crate::game::{Game, Position, State};
-use crate::ui::{AppEvent, Cursor, Module, UI_OFFSET};
+use crate::ui::{AppEvent, Cursor, Module, ModuleKind, UI_OFFSET};
 use crate::ui::cursor_scrollbar::CursorScrollbar;
 
 const BLOCK: &str = "██";
@@ -35,13 +35,13 @@ impl Module for BoardDisplay {
         }
     }
 
-    fn render(&mut self, frame: &mut Frame, game: &mut Game) {
+    fn render(&mut self, frame: &mut Frame, area: &Rect, game: &mut Game) {
         let display_width = ((game.width() as u16) * 2) + UI_OFFSET;
         let display_height = game.height() as u16 + UI_OFFSET;
 
-        let width = display_width.min(frame.size().width);
-        let height = display_height.min(frame.size().height);
-        let board_render_area = Rect { x: 0, y: 0, width, height};
+        let width = display_width.min(area.width);
+        let height = display_height.min(area.height);
+        let board_render_area = Rect { x: area.x, y: area.y, width, height};
         self.cursor_scrollbar.update_scrollbars(board_render_area, &self.cursor);
         self.cursor_scrollbar.render_scrollbars(frame, display_width, display_height, width, height);
 
@@ -70,5 +70,9 @@ impl Module for BoardDisplay {
             Paragraph::new(lines).scroll(self.cursor_scrollbar.offset()).block(Block::default().borders(Borders::ALL).padding(Padding::zero())),
             board_render_area
         );
+    }
+
+    fn kind(&self) -> ModuleKind {
+        ModuleKind::BoardDisplay
     }
 }
