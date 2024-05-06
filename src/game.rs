@@ -32,8 +32,10 @@ pub struct Player {
 
 #[derive(Clone, Debug)]
 pub struct Piece {
-    blocks: Vec<Position>,
-    pivot: Position
+    pub(crate) blocks: Vec<Position>,
+    pivot: Position,
+    num_lines: u16,
+    num_columns: u16
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
@@ -64,6 +66,14 @@ impl Game {
 
     pub fn player_names(&self) -> Vec<&str> {
         self.players.players.iter().map(|player| player.name.as_str()).collect()
+    }
+
+    pub fn active_player_pieces(&self) -> &[Piece] {
+        &self.active_player().available_pieces
+    }
+
+    fn active_player(&self) -> &Player {
+        &self.players.players[self.players.active_player_index]
     }
 }
 
@@ -128,13 +138,23 @@ impl std::ops::Add for Position {
 impl Piece {
     pub fn new(blocks: Vec<Position>) -> Self {
         let pivot = Self::find_pivot_position(&blocks);
-        Piece { blocks, pivot }
+        let num_lines = Self::calculate_num_lines(&blocks);
+        let num_columns = Self::calculate_num_columns(&blocks);
+        Piece { blocks, pivot, num_lines, num_columns }
     }
 
-    pub(crate) fn rotate(&mut self) {
+    pub fn rotate(&mut self) {
         for block in self.blocks.iter_mut() {
             block.rotate_around_pivot(self.pivot)
         }
+    }
+
+    pub fn num_lines(&self) -> u16 {
+        self.num_lines
+    }
+
+    pub fn num_columns(&self) -> u16 {
+        self.num_columns
     }
 
     fn find_pivot_position(blocks: &[Position]) -> Position {
@@ -149,6 +169,16 @@ impl Piece {
             x: pivot_x as i32,
             y: pivot_y as i32
         }
+    }
+
+    fn calculate_num_lines(blocks: &[Position]) -> u16 {
+        let max_y = blocks.iter().map(|block| block.y).max().unwrap() as u16;
+        max_y + 1
+    }
+
+    fn calculate_num_columns(blocks: &[Position]) -> u16 {
+        let max_x = blocks.iter().map(|block| block.x).max().unwrap() as u16;
+        max_x + 1
     }
 }
 

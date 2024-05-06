@@ -9,7 +9,8 @@ use crate::ui::cursor_scrollbar::CursorScrollbar;
 
 pub struct BoardDisplay {
     cursor: Cursor,
-    cursor_scrollbar: CursorScrollbar
+    cursor_scrollbar: CursorScrollbar,
+    enabled: bool
 }
 
 impl BoardDisplay {
@@ -17,19 +18,28 @@ impl BoardDisplay {
         let cursor = Cursor::new(width as i32, height as i32);
         BoardDisplay {
             cursor,
-            cursor_scrollbar: CursorScrollbar::default()
+            cursor_scrollbar: CursorScrollbar::default(),
+            enabled: true
         }
     }
 }
 
 impl Module for BoardDisplay {
     fn update(&mut self, event: AppEvent) {
-        match event {
-            AppEvent::MoveUp => self.cursor.move_up(),
-            AppEvent::MoveDown => self.cursor.move_down(),
-            AppEvent::MoveLeft => self.cursor.move_left(),
-            AppEvent::MoveRight => self.cursor.move_right(),
-            _ => ()
+        if !self.enabled {
+            match event {
+                AppEvent::PieceSelected(_) => self.enabled = true,
+                _ => ()
+            }
+        } else {
+            match event {
+                AppEvent::MoveUp => self.cursor.move_up(),
+                AppEvent::MoveDown => self.cursor.move_down(),
+                AppEvent::MoveLeft => self.cursor.move_left(),
+                AppEvent::MoveRight => self.cursor.move_right(),
+                AppEvent::OpenPieceSelection => self.enabled = false,
+                _ => ()
+            }
         }
     }
 
@@ -52,7 +62,7 @@ impl Module for BoardDisplay {
         for y in 0..height {
             let mut line = vec![];
             for x in 0..width {
-                if cursor_position.x == x && cursor_position.y == y {
+                if self.enabled && cursor_position.x == x && cursor_position.y == y {
                     line.push(Span::styled(BLOCK, Style::default().fg(Color::Red)))
                 }
                 let color = match board.get_state_on_position(Position { x, y }).unwrap() {
@@ -64,8 +74,16 @@ impl Module for BoardDisplay {
             lines.push(line.into());
         }
 
+        let border_color = if self.enabled { Color::default() } else { Color::Gray };
         frame.render_widget(
-            Paragraph::new(lines).scroll(self.cursor_scrollbar.offset()).block(Block::default().borders(Borders::ALL).padding(Padding::zero())),
+            Paragraph::new(lines)
+                .scroll(self.cursor_scrollbar.offset())
+                .block(Block::default()
+                    .title("Board")
+                    .borders(Borders::ALL)
+                    .style(Style::default().fg(border_color))
+                    .padding(Padding::zero())
+                ),
             board_render_area
         );
     }
