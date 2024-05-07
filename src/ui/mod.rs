@@ -6,17 +6,17 @@ use crossterm::{
     ExecutableCommand,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{prelude::*, widgets::*};
+use ratatui::{prelude::*};
 
 use crate::game::{Game, Position};
-use crate::ui::board_display::BoardDisplay;
-use crate::ui::piece_display::PieceDisplay;
-use crate::ui::player_display::PlayerDisplay;
+use crate::ui::board_module::BoardDisplay;
+use crate::ui::piece_module::PieceDisplay;
+use crate::ui::player_module::PlayerDisplay;
 
 mod cursor_scrollbar;
-mod board_display;
-mod player_display;
-mod piece_display;
+mod board_module;
+mod player_module;
+mod piece_module;
 
 const BLOCK: &str = "██";
 const UI_OFFSET: u16 = 2;
@@ -26,7 +26,7 @@ struct App {
     modules: HashMap<ModuleKind, Box<dyn Module>>
 }
 
-pub trait Module {
+pub(crate) trait Module {
     fn update(&mut self, event: AppEvent);
     fn render(&mut self, frame: &mut Frame, area: Rect, game: &mut Game);
     fn kind(&self) -> ModuleKind;
@@ -37,10 +37,10 @@ pub trait RenderCanvas {
 }
 
 #[derive(Eq, Hash, PartialEq)]
-enum ModuleKind {
-    BoardDisplay,
-    PlayerDisplay,
-    PieceDisplay
+pub(crate) enum ModuleKind {
+    Board,
+    Player,
+    Piece
 }
 
 struct Cursor {
@@ -82,9 +82,9 @@ pub fn run(game: &mut Game) -> io::Result<()> {
             let [player_area, piece_area] = vertical.areas(side_menu_area);
 
             let areas = vec![
-                (ModuleKind::BoardDisplay, board_area),
-                (ModuleKind::PlayerDisplay, player_area),
-                (ModuleKind::PieceDisplay, piece_area)
+                (ModuleKind::Board, board_area),
+                (ModuleKind::Player, player_area),
+                (ModuleKind::Piece, piece_area)
             ].into_iter().collect::<HashMap<ModuleKind, Rect>>();
             app.render_modules(frame, game, areas)
         })?;
@@ -92,10 +92,7 @@ pub fn run(game: &mut Game) -> io::Result<()> {
         let event = poll_event()?;
         app.update_modules(event);
 
-        match event {
-            AppEvent::Quit => break,
-            _ => ()
-        }
+        if let AppEvent::Quit = event { break }
     }
 
     disable_raw_mode()?;

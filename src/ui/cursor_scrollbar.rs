@@ -22,7 +22,7 @@ impl CursorScrollbar {
         let rows_shown = board_render_area.height - UI_OFFSET;
         let columns_shown = board_render_area.width - UI_OFFSET;
 
-        let cursor_position = cursor.position;
+        let cursor_position = &cursor.position;
 
         let relative_cursor_y = cursor_position.y - self.offset.y;
         if relative_cursor_y as u16 >= rows_shown {

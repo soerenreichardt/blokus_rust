@@ -10,11 +10,11 @@ use crate::ui::{AppEvent, BLOCK, Module, ModuleKind};
 pub struct PlayerDisplay;
 
 impl Module for PlayerDisplay {
-    fn update(&mut self, event: AppEvent) {}
+    fn update(&mut self, _event: AppEvent) {}
 
     fn render(&mut self, frame: &mut Frame, area: Rect, game: &mut Game) {
         let text: Vec<Line<'_>> = game.players().iter().map(|player|
-            Span::styled(format!("{BLOCK}  {}", player.name), Style::default().fg(player.color)).into()
+            Span::styled(format!("{}  {}", BLOCK, player.name), Style::default().fg(player.color)).into()
         ).collect();
         frame.render_widget(
             Paragraph::new(text).block(Block::default().borders(Borders::ALL).title("Players")),
@@ -23,6 +23,6 @@ impl Module for PlayerDisplay {
     }
 
     fn kind(&self) -> ModuleKind {
-        ModuleKind::PlayerDisplay
+        ModuleKind::Player
     }
 }

@@ -3,8 +3,8 @@ use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Line, Span, Style};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 
-use crate::game::{Game, Position, State};
-use crate::ui::{AppEvent, BLOCK, Cursor, Module, ModuleKind, UI_OFFSET};
+use crate::game::{Board, Game, Position, State};
+use crate::ui::{AppEvent, BLOCK, Cursor, Module, ModuleKind, RenderCanvas, UI_OFFSET};
 use crate::ui::cursor_scrollbar::CursorScrollbar;
 
 pub struct BoardDisplay {
@@ -27,10 +27,7 @@ impl BoardDisplay {
 impl Module for BoardDisplay {
     fn update(&mut self, event: AppEvent) {
         if !self.enabled {
-            match event {
-                AppEvent::PieceSelected(_) => self.enabled = true,
-                _ => ()
-            }
+            if let AppEvent::PieceSelected(_) = event { self.enabled = true }
         } else {
             match event {
                 AppEvent::MoveUp => self.cursor.move_up(),
@@ -53,25 +50,11 @@ impl Module for BoardDisplay {
         self.cursor_scrollbar.update_scrollbars(board_render_area, &self.cursor);
         self.cursor_scrollbar.render_scrollbars(frame, display_width, display_height, width, height);
 
-        let board = &game.board;
-        let width = board.width as i32;
-        let height = board.height as i32;
+        let mut lines = game.board.render();
 
-        let cursor_position = self.cursor.position;
-        let mut lines: Vec<Line<'_>> = vec![];
-        for y in 0..height {
-            let mut line = vec![];
-            for x in 0..width {
-                if self.enabled && cursor_position.x == x && cursor_position.y == y {
-                    line.push(Span::styled(BLOCK, Style::default().fg(Color::Red)))
-                }
-                let color = match board.get_state_on_position(Position { x, y }).unwrap() {
-                    State::Free => Color::Gray,
-                    State::Occupied(_) => Color::Blue
-                };
-                line.push(Span::styled(BLOCK, Style::default().fg(color)))
-            }
-            lines.push(line.into());
+        if self.enabled {
+            let cursor_position = &self.cursor.position;
+            lines[cursor_position.y as usize].spans[cursor_position.x as usize] = Span::styled(BLOCK, Style::default().fg(Color::Red));
         }
 
         let border_color = if self.enabled { Color::default() } else { Color::Gray };
@@ -89,6 +72,24 @@ impl Module for BoardDisplay {
     }
 
     fn kind(&self) -> ModuleKind {
-        ModuleKind::BoardDisplay
+        ModuleKind::Board
+    }
+}
+
+impl RenderCanvas for Board {
+    fn render(&self) -> Vec<Line<'_>> {
+        let mut lines: Vec<Line<'_>> = vec![];
+        for y in 0..self.height as i32 {
+            let mut line = vec![];
+            for x in 0..self.width as i32 {
+                let color = match self.get_state_on_position(&Position { x, y }).unwrap() {
+                    State::Free => Color::Gray,
+                    State::Occupied(_) => Color::Blue
+                };
+                line.push(Span::styled(BLOCK, Style::default().fg(color)))
+            }
+            lines.push(line.into());
+        }
+        lines
     }
 }

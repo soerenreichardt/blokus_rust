@@ -57,7 +57,7 @@ impl Module for PieceDisplay {
     }
 
     fn kind(&self) -> ModuleKind {
-        ModuleKind::PieceDisplay
+        ModuleKind::Piece
     }
 }
 
@@ -67,7 +67,7 @@ impl RenderCanvas for Piece {
         let mut canvas = vec![vec![empty_tile; self.num_columns() as usize]; self.num_lines() as usize];
         for block in self.blocks.iter() {
             // casting block y|x to usize is a problem as rotated pieces can have negative coordinates
-            canvas[block.y as usize][block.x as usize] = Span::styled(BLOCK, Style::default().fg(Color::Blue)).into()
+            canvas[block.y as usize][block.x as usize] = Span::styled(BLOCK, Style::default().fg(Color::Blue))
         }
         canvas.into_iter().map(|line| line.into()).collect()
     }

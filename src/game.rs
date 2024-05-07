@@ -38,7 +38,7 @@ pub struct Piece {
     num_columns: u16
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Position {
     pub x: i32,
     pub y: i32
@@ -64,10 +64,6 @@ impl Game {
         &self.players.players
     }
 
-    pub fn player_names(&self) -> Vec<&str> {
-        self.players.players.iter().map(|player| player.name.as_str()).collect()
-    }
-
     pub fn active_player_pieces(&self) -> &[Piece] {
         &self.active_player().available_pieces
     }
@@ -89,20 +85,20 @@ impl Board {
     fn place_piece(&mut self, piece: Piece, offset: Position, player_index: usize) -> Result<bool, String> {
         for local_position in piece.blocks {
             let board_position = local_position + offset.clone();
-            match self.get_state_on_position(board_position)? {
-                State::Free => self.occupy_position(board_position, player_index)?,
+            match self.get_state_on_position(&board_position)? {
+                State::Free => self.occupy_position(&board_position, player_index)?,
                 State::Occupied(_) => return Ok(false)
             }
         }
         Ok(true)
     }
 
-    pub fn get_state_on_position(&self, position: Position) -> Result<State, String> {
+    pub fn get_state_on_position(&self, position: &Position) -> Result<State, String> {
         position.check_within_bounds(self.width, self.height)?;
         Ok(self.tiles[position.y as usize][position.x as usize])
     }
 
-    fn occupy_position(&mut self, position: Position, player_index: usize) -> Result<(), String> {
+    fn occupy_position(&mut self, position: &Position, player_index: usize) -> Result<(), String> {
         position.check_within_bounds(self.width, self.height)?;
         self.tiles[position.y as usize][position.x as usize] = State::Occupied(player_index);
         Ok(())
@@ -117,7 +113,7 @@ impl Position {
         }
     }
 
-    pub fn rotate_around_pivot(&mut self, pivot_position: Position) {
+    pub fn rotate_around_pivot(&mut self, pivot_position: &Position) {
         let temp_x = self.x;
         self.x = pivot_position.x + pivot_position.y - self.y;
         self.y = pivot_position.y - pivot_position.x + temp_x;
@@ -145,7 +141,7 @@ impl Piece {
 
     pub fn rotate(&mut self) {
         for block in self.blocks.iter_mut() {
-            block.rotate_around_pivot(self.pivot)
+            block.rotate_around_pivot(&self.pivot)
         }
     }
 
@@ -206,7 +202,7 @@ mod tests {
         let was_placed = board.place_piece(piece_1x1(), Position { x: 0, y: 0 }, 0).unwrap();
         assert!(was_placed);
 
-        assert_eq!(board.get_state_on_position(Position { x: 0, y: 0 }).unwrap(), State::Occupied(0));
+        assert_eq!(board.get_state_on_position(&Position { x: 0, y: 0 }).unwrap(), State::Occupied(0));
 
         let was_placed = board.place_piece(piece_1x1(), Position { x: 0, y: 0 }, 0).unwrap();
         assert!(!was_placed)
