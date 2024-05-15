@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Line, Span, Style};
@@ -25,7 +26,7 @@ impl BoardDisplay {
 }
 
 impl Module for BoardDisplay {
-    fn update(&mut self, event: AppEvent, _game: &Game) {
+    fn update(&mut self, event: AppEvent, _game: &Game) -> Option<AppEvent> {
         if !self.enabled {
             if let AppEvent::PieceSelected(_) = event { self.enabled = true }
         } else {
@@ -35,9 +36,14 @@ impl Module for BoardDisplay {
                 AppEvent::MoveLeft => self.cursor.move_left(),
                 AppEvent::MoveRight => self.cursor.move_right(),
                 AppEvent::OpenPieceSelection => self.enabled = false,
+                AppEvent::PieceSelected(_) => {
+                    self.enabled = true
+                },
                 _ => ()
             }
         }
+
+        None
     }
 
     fn render(&mut self, frame: &mut Frame, area: Rect, game: &mut Game) {

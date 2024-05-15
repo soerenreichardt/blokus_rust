@@ -52,10 +52,15 @@ impl PieceDisplay {
         self.cursor.area.height = piece.num_lines();
         self.cursor.area.width = piece.num_columns();
     }
+
+    fn select_piece(&mut self) -> usize {
+        self.enabled = false;
+        self.selection_index
+    }
 }
 
 impl Module for PieceDisplay {
-    fn update(&mut self, event: AppEvent, game: &Game) {
+    fn update(&mut self, event: AppEvent, game: &Game) -> Option<AppEvent> {
         if let AppEvent::OpenPieceSelection = event {
             self.enabled = true
         }
@@ -66,6 +71,7 @@ impl Module for PieceDisplay {
                 _ => ()
             }
         }
+        return None;
     }
 
     fn render(&mut self, frame: &mut Frame, widget_area: Rect, game: &mut Game) {

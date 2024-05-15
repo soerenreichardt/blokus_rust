@@ -10,7 +10,9 @@ use crate::ui::{AppEvent, BLOCK, Module, ModuleKind};
 pub struct PlayerDisplay;
 
 impl Module for PlayerDisplay {
-    fn update(&mut self, _event: AppEvent, _game: &Game) {}
+    fn update(&mut self, _event: AppEvent, _game: &Game) -> Option<AppEvent> {
+        None
+    }
 
     fn render(&mut self, frame: &mut Frame, area: Rect, game: &mut Game) {
         let text: Vec<Line<'_>> = game.players().iter().map(|player|

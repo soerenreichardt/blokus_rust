@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::io::{self, stdout};
 
 use crossterm::{
@@ -27,7 +27,7 @@ struct App {
 }
 
 pub(crate) trait Module {
-    fn update(&mut self, event: AppEvent, game: &Game);
+    fn update(&mut self, event: AppEvent, game: &Game) -> Option<AppEvent>;
     fn render(&mut self, frame: &mut Frame, area: Rect, game: &mut Game);
     fn kind(&self) -> ModuleKind;
 }
@@ -66,6 +66,7 @@ pub fn run(game: &mut Game) -> io::Result<()> {
     enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
+    let mut event_queue = VecDeque::new();
     let mut app = App::default();
 
     app.add_module(BoardDisplay::new(game.width(), game.height()));
@@ -78,7 +79,7 @@ pub fn run(game: &mut Game) -> io::Result<()> {
     let horizontal = Layout::horizontal([Constraint::Max((game.width() * 2) as u16 + UI_OFFSET), Constraint::Max(20)]);
     let vertical = Layout::vertical([Constraint::Max(name_area_height), Constraint::Max(piece_area_height)]);
 
-    loop {
+    'main_loop: loop {
         terminal.draw(|frame| {
             let [board_area, side_menu_area] = horizontal.areas(frame.size());
             let [player_area, piece_area] = vertical.areas(side_menu_area);
@@ -91,10 +92,11 @@ pub fn run(game: &mut Game) -> io::Result<()> {
             app.render_modules(frame, game, areas)
         })?;
 
-        let event = poll_event()?;
-        app.update_modules(event, &game);
-
-        if let AppEvent::Quit = event { break }
+        event_queue.push_back(poll_event()?);
+        while let Some(event) = event_queue.pop_front() {
+            if let AppEvent::Quit = event { break 'main_loop }
+            app.update_modules(event, &game, &mut event_queue);
+        }
     }
 
     disable_raw_mode()?;
@@ -102,7 +104,7 @@ pub fn run(game: &mut Game) -> io::Result<()> {
     Ok(())
 }
 
-fn poll_event() -> io::Result<AppEvent> {
+fn poll_event() -> io::Result<(AppEvent)> {
     if event::poll(std::time::Duration::from_millis(50))? {
         if let Event::Key(key) = event::read()? {
             if key.kind == event::KeyEventKind::Press {
@@ -126,9 +128,9 @@ impl App {
         self.modules.insert(module.kind(), Box::new(module));
     }
 
-    fn update_modules(&mut self, event: AppEvent, game: &Game) {
+    fn update_modules(&mut self, event: AppEvent, game: &Game, event_queue: &mut VecDeque<AppEvent>) {
         for (_, module) in self.modules.iter_mut() {
-            module.update(event, game)
+            module.update(event, game).map(|event| event_queue.push_back(event));
         }
     }
 
