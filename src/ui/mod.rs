@@ -6,9 +6,9 @@ use crossterm::{
     ExecutableCommand,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{prelude::*};
+use ratatui::prelude::*;
 
-use crate::game::{Game, Position};
+use crate::game::Game;
 use crate::ui::board_module::BoardDisplay;
 use crate::ui::piece_module::PieceDisplay;
 use crate::ui::player_module::PlayerDisplay;
@@ -27,7 +27,7 @@ struct App {
 }
 
 pub(crate) trait Module {
-    fn update(&mut self, event: AppEvent);
+    fn update(&mut self, event: AppEvent, game: &Game);
     fn render(&mut self, frame: &mut Frame, area: Rect, game: &mut Game);
     fn kind(&self) -> ModuleKind;
 }
@@ -43,10 +43,11 @@ pub(crate) enum ModuleKind {
     Piece
 }
 
+#[derive(Default)]
 struct Cursor {
-    position: Position,
-    max_x: i32,
-    max_y: i32
+    area: Rect,
+    max_x: u16,
+    max_y: u16
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -69,7 +70,7 @@ pub fn run(game: &mut Game) -> io::Result<()> {
 
     app.add_module(BoardDisplay::new(game.width(), game.height()));
     app.add_module(PlayerDisplay);
-    app.add_module(PieceDisplay::new(game.players()[0].available_pieces.len()));
+    app.add_module(PieceDisplay::new());
 
     let name_area_height = game.players().len() as u16 + UI_OFFSET;
     let piece_area_height = game.height() as u16 - name_area_height + UI_OFFSET;
@@ -91,7 +92,7 @@ pub fn run(game: &mut Game) -> io::Result<()> {
         })?;
 
         let event = poll_event()?;
-        app.update_modules(event);
+        app.update_modules(event, &game);
 
         if let AppEvent::Quit = event { break }
     }
@@ -125,9 +126,9 @@ impl App {
         self.modules.insert(module.kind(), Box::new(module));
     }
 
-    fn update_modules(&mut self, event: AppEvent) {
+    fn update_modules(&mut self, event: AppEvent, game: &Game) {
         for (_, module) in self.modules.iter_mut() {
-            module.update(event)
+            module.update(event, game)
         }
     }
 
@@ -139,35 +140,43 @@ impl App {
 }
 
 impl Cursor {
-    fn new(max_x: i32, max_y: i32) -> Self {
+    fn simple(max_x: u16, max_y: u16) -> Self {
         Cursor {
             max_x,
             max_y,
-            position: Position::default()
+            area: Rect::new(0, 0, 1, 1)
+        }
+    }
+
+    fn new(max_x: u16, max_y: u16, area: Rect) -> Self {
+        Cursor {
+            max_x,
+            max_y,
+            area
         }
     }
 
     fn move_down(&mut self) {
-        if self.position.y < self.max_y - 1 {
-            self.position.y += 1
+        if self.area.y < self.max_y - 1 {
+            self.area.y += 1
         }
     }
 
     fn move_up(&mut self) {
-        if self.position.y > 0 {
-            self.position.y -= 1
+        if self.area.y > 0 {
+            self.area.y -= 1
         }
     }
 
     fn move_right(&mut self) {
-        if self.position.x < self.max_x - 1 {
-            self.position.x += 1
+        if self.area.x < self.max_x - 1 {
+            self.area.x += 1
         }
     }
 
     fn move_left(&mut self) {
-        if self.position.x > 0 {
-            self.position.x -= 1
+        if self.area.x > 0 {
+            self.area.x -= 1
         }
     }
 }

@@ -17,18 +17,24 @@ impl VerticalScrollBar {
     }
 
     pub fn update_scrollbar(&mut self, board_render_area: Rect, cursor: &Cursor) {
-        let rows_shown = board_render_area.height - UI_OFFSET;
+        let rows_displayed = board_render_area.height - UI_OFFSET;
 
-        let cursor_position = cursor.position.y;
-
-        let relative_cursor_position = cursor_position - self.offset as i32;
-        if relative_cursor_position as u16 >= rows_shown {
-            self.offset += 1;
-            self.scrollbar_state = self.scrollbar_state.position(cursor_position as usize + 1);
+        if rows_displayed < cursor.area.height {
+            // TODO: switch to warning display mode
+            panic!("Display too small!")
         }
-        if relative_cursor_position < 0 {
-            self.offset -= 2;
-            self.scrollbar_state = self.scrollbar_state.position(cursor_position as usize + 1);
+
+        // scroll up
+        if (rows_displayed + self.offset) < (cursor.area.y + cursor.area.height) {
+            self.offset = (cursor.area.y + cursor.area.height) - rows_displayed;
+            self.scrollbar_state = self.scrollbar_state.position(cursor.area.y as usize + 1);
+        }
+
+        // scroll down
+        if cursor.area.y < self.offset {
+            let diff = self.offset - cursor.area.y;
+            self.offset -= diff;
+            self.scrollbar_state = self.scrollbar_state.position(cursor.area.y as usize + 1);
         }
     }
 

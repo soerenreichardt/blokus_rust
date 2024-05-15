@@ -1,11 +1,11 @@
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Line, Span, Style};
-use ratatui::widgets::{Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
+use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 
 use crate::game::{Board, Game, Position, State};
 use crate::ui::{AppEvent, BLOCK, Cursor, Module, ModuleKind, RenderCanvas, UI_OFFSET};
-use crate::ui::scrollbars::{VerticalScrollBar};
+use crate::ui::scrollbars::VerticalScrollBar;
 
 pub struct BoardDisplay {
     cursor: Cursor,
@@ -15,7 +15,7 @@ pub struct BoardDisplay {
 
 impl BoardDisplay {
     pub fn new(width: usize, height: usize) -> Self {
-        let cursor = Cursor::new(width as i32, height as i32);
+        let cursor = Cursor::simple(width as u16, height as u16);
         BoardDisplay {
             cursor,
             vertical_scrollbar: VerticalScrollBar::default(),
@@ -25,7 +25,7 @@ impl BoardDisplay {
 }
 
 impl Module for BoardDisplay {
-    fn update(&mut self, event: AppEvent) {
+    fn update(&mut self, event: AppEvent, _game: &Game) {
         if !self.enabled {
             if let AppEvent::PieceSelected(_) = event { self.enabled = true }
         } else {
@@ -52,7 +52,7 @@ impl Module for BoardDisplay {
         let mut lines = game.board.render();
 
         if self.enabled {
-            let cursor_position = &self.cursor.position;
+            let cursor_position = &self.cursor.area;
             lines[cursor_position.y as usize].spans[cursor_position.x as usize] = Span::styled(BLOCK, Style::default().fg(Color::Red));
         }
 
