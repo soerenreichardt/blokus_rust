@@ -59,6 +59,7 @@ enum AppEvent {
     MoveRight,
     OpenPieceSelection,
     PieceSelected(usize),
+    Select,
     None
 }
 
@@ -115,6 +116,7 @@ fn poll_event() -> io::Result<(AppEvent)> {
                     KeyCode::Left => return Ok(AppEvent::MoveLeft),
                     KeyCode::Right => return Ok(AppEvent::MoveRight),
                     KeyCode::Char('i') => return Ok(AppEvent::OpenPieceSelection),
+                    KeyCode::Enter => return Ok(AppEvent::Select),
                     _ => ()
                 }
             }

@@ -68,6 +68,7 @@ impl Module for PieceDisplay {
             match event {
                 AppEvent::MoveDown => self.move_cursor_down(game),
                 AppEvent::MoveUp => self.move_cursor_up(game),
+                AppEvent::Select => return Some(AppEvent::PieceSelected(self.select_piece())),
                 _ => ()
             }
         }
