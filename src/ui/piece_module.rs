@@ -5,12 +5,13 @@ use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::game::{Game, Piece};
-use crate::ui::{AppEvent, BLOCK, Cursor, Module, ModuleKind, RenderCanvas};
-use crate::ui::cursor_scrollbar::CursorScrollbar;
+use crate::ui::{AppEvent, BLOCK, Cursor, Module, ModuleKind, RenderCanvas, UI_OFFSET};
+use crate::ui::scrollbars::VerticalScrollBar;
 
 pub struct PieceDisplay {
     cursor: Cursor,
-    cursor_scrollbar: CursorScrollbar,
+    piece_index: usize,
+    scrollbar: VerticalScrollBar,
     enabled: bool
 }
 
@@ -19,7 +20,8 @@ impl PieceDisplay {
         let cursor = Cursor::new(0, height as i32);
         PieceDisplay {
             cursor,
-            cursor_scrollbar: CursorScrollbar::default(),
+            piece_index: 0,
+            scrollbar: VerticalScrollBar::default(),
             enabled: false
         }
     }
@@ -33,11 +35,15 @@ impl PieceDisplay {
 
 impl Module for PieceDisplay {
     fn update(&mut self, event: AppEvent) {
-        match event {
-            AppEvent::OpenPieceSelection => self.enabled = true,
-            AppEvent::MoveDown => self.cursor.position.y += 1,
-            AppEvent::MoveUp => self.cursor.position.y -= 1,
-            _ => ()
+        if let AppEvent::OpenPieceSelection = event {
+            self.enabled = true
+        }
+        if self.enabled {
+            match event {
+                AppEvent::MoveDown => self.cursor.move_down(),
+                AppEvent::MoveUp => self.cursor.move_up(),
+                _ => ()
+            }
         }
     }
 
@@ -50,18 +56,32 @@ impl Module for PieceDisplay {
         let text = render_pieces.iter()
             .flat_map(Self::render_piece)
             .collect::<Vec<_>>();
+        let text_len = text.len() as u16;
+
+        let pieces_prefix_sum = render_pieces.iter().scan(0, |sum, piece| {
+            *sum += piece.piece.num_lines() + 1;
+            Some(*sum)
+        }).collect::<Vec<_>>();
+
+        let mut virtual_cursor = Cursor::new(0, *pieces_prefix_sum.last().unwrap() as i32);
+        virtual_cursor.position.y = pieces_prefix_sum[self.cursor.position.y as usize] as i32 - pieces_prefix_sum[0] as i32;
+        self.scrollbar.update_scrollbar(widget_area, &virtual_cursor);
 
         let border_color = if self.enabled { Color::default() } else { Color::Gray };
         frame.render_widget(
             Paragraph::new(text)
                 .centered()
+                .scroll((self.scrollbar.offset(), 0))
                 .block(Block::default()
+                    .title(format!("{} - {}", self.cursor.position.y, virtual_cursor.position.y))
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(border_color))
                     .title("Pieces")
                 ),
             widget_area
-        )
+        );
+
+        self.scrollbar.render_scrollbar(frame, text_len + UI_OFFSET, widget_area);
     }
 
     fn kind(&self) -> ModuleKind {
@@ -97,19 +117,6 @@ impl<'a> RenderCanvas for RenderPiece<'a> {
             // casting block y|x to usize is a problem as rotated pieces can have negative coordinates
             canvas[block.y as usize][block.x as usize] = Span::styled(BLOCK, Style::default().fg(color))
         }
-        canvas.into_iter().map(|line| line.into()).collect()
-    }
-}
-
-impl RenderCanvas for Piece {
-    fn render(&self) -> Vec<Line<'_>> {
-        let empty_tile = Span::styled("  ", Style::default());
-        let mut canvas = vec![vec![empty_tile; self.num_columns() as usize]; self.num_lines() as usize];
-        for block in self.blocks.iter() {
-            // casting block y|x to usize is a problem as rotated pieces can have negative coordinates
-            canvas[block.y as usize][block.x as usize] = Span::styled(BLOCK, Style::default().fg(Color::Gray))
-        }
-        canvas.push(vec![Span::raw("\n")]);
         canvas.into_iter().map(|line| line.into()).collect()
     }
 }

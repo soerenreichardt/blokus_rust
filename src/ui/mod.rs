@@ -13,7 +13,7 @@ use crate::ui::board_module::BoardDisplay;
 use crate::ui::piece_module::PieceDisplay;
 use crate::ui::player_module::PlayerDisplay;
 
-mod cursor_scrollbar;
+mod scrollbars;
 mod board_module;
 mod player_module;
 mod piece_module;
@@ -67,14 +67,15 @@ pub fn run(game: &mut Game) -> io::Result<()> {
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
     let mut app = App::default();
 
+    app.add_module(BoardDisplay::new(game.width(), game.height()));
+    app.add_module(PlayerDisplay);
+    app.add_module(PieceDisplay::new(game.players()[0].available_pieces.len()));
+
     let name_area_height = game.players().len() as u16 + UI_OFFSET;
     let piece_area_height = game.height() as u16 - name_area_height + UI_OFFSET;
 
     let horizontal = Layout::horizontal([Constraint::Max((game.width() * 2) as u16 + UI_OFFSET), Constraint::Max(20)]);
     let vertical = Layout::vertical([Constraint::Max(name_area_height), Constraint::Max(piece_area_height)]);
-    app.add_module(BoardDisplay::new(game.width(), game.height()));
-    app.add_module(PlayerDisplay);
-    app.add_module(PieceDisplay::new(game.players()[0].available_pieces.len()));
 
     loop {
         terminal.draw(|frame| {

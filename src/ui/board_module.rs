@@ -1,15 +1,15 @@
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Line, Span, Style};
-use ratatui::widgets::{Block, Borders, Padding, Paragraph};
+use ratatui::widgets::{Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
 
 use crate::game::{Board, Game, Position, State};
 use crate::ui::{AppEvent, BLOCK, Cursor, Module, ModuleKind, RenderCanvas, UI_OFFSET};
-use crate::ui::cursor_scrollbar::CursorScrollbar;
+use crate::ui::scrollbars::{VerticalScrollBar};
 
 pub struct BoardDisplay {
     cursor: Cursor,
-    cursor_scrollbar: CursorScrollbar,
+    vertical_scrollbar: VerticalScrollBar,
     enabled: bool
 }
 
@@ -18,7 +18,7 @@ impl BoardDisplay {
         let cursor = Cursor::new(width as i32, height as i32);
         BoardDisplay {
             cursor,
-            cursor_scrollbar: CursorScrollbar::default(),
+            vertical_scrollbar: VerticalScrollBar::default(),
             enabled: true
         }
     }
@@ -47,8 +47,7 @@ impl Module for BoardDisplay {
         let width = display_width.min(area.width);
         let height = display_height.min(area.height);
         let board_render_area = Rect { x: area.x, y: area.y, width, height};
-        self.cursor_scrollbar.update_scrollbars(board_render_area, &self.cursor);
-        self.cursor_scrollbar.render_scrollbars(frame, display_width, display_height, width, height);
+        self.vertical_scrollbar.update_scrollbar(board_render_area, &self.cursor);
 
         let mut lines = game.board.render();
 
@@ -58,9 +57,10 @@ impl Module for BoardDisplay {
         }
 
         let border_color = if self.enabled { Color::default() } else { Color::Gray };
+
         frame.render_widget(
             Paragraph::new(lines)
-                .scroll(self.cursor_scrollbar.offset())
+                .scroll((self.vertical_scrollbar.offset(), 0))
                 .block(Block::default()
                     .title("Board")
                     .borders(Borders::ALL)
@@ -69,6 +69,16 @@ impl Module for BoardDisplay {
                 ),
             board_render_area
         );
+
+        self.vertical_scrollbar.render_scrollbar(frame, display_height, board_render_area);
+        // frame.render_stateful_widget(
+        //     Scrollbar::new(ScrollbarOrientation::HorizontalBottom),
+        //     board_render_area,
+        //     &mut ScrollbarState::default()
+        //         .viewport_content_length(1)
+        //         .content_length(20)
+        //         .position(18)
+        // );
     }
 
     fn kind(&self) -> ModuleKind {
