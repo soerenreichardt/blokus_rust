@@ -4,14 +4,15 @@ use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Line, Span, Style};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 
-use crate::game::{Board, Game, Position, State};
+use crate::game::{Board, Game, Piece, Position, State};
 use crate::ui::{AppEvent, BLOCK, Cursor, Module, ModuleKind, RenderCanvas, UI_OFFSET};
 use crate::ui::scrollbars::VerticalScrollBar;
 
 pub struct BoardDisplay {
     cursor: Cursor,
     vertical_scrollbar: VerticalScrollBar,
-    enabled: bool
+    enabled: bool,
+    selected_piece: Option<usize>
 }
 
 impl BoardDisplay {
@@ -20,15 +21,43 @@ impl BoardDisplay {
         BoardDisplay {
             cursor,
             vertical_scrollbar: VerticalScrollBar::default(),
-            enabled: true
+            enabled: true,
+            selected_piece: None
         }
+    }
+
+    pub fn render_cursor(&mut self, lines: &mut Vec<Line<'_>>, game: &Game) {
+        match self.selected_piece {
+            Some(piece_index) => self.render_piece_cursor(lines, &game, piece_index),
+            None => self.render_simple_cursor(lines)
+        }
+    }
+
+    fn render_piece_cursor(&mut self, lines: &mut Vec<Line<'_>>, game: &Game, piece_index: usize) {
+        let piece = &game.active_player_pieces()[piece_index];
+        self.cursor.area.width = piece.num_columns();
+        self.cursor.area.height = piece.num_lines();
+        let cursor_position = &self.cursor.area;
+        for block in piece.blocks.iter() {
+            let line = cursor_position.y as usize + block.y as usize;
+            let column = cursor_position.x as usize + block.x as usize;
+            lines[line].spans[column] = Span::styled(BLOCK, Style::default().fg(Color::Red));
+        }
+    }
+
+    fn render_simple_cursor(&mut self, lines: &mut Vec<Line>) {
+        let cursor_position = &self.cursor.area;
+        lines[cursor_position.y as usize].spans[cursor_position.x as usize] = Span::styled(BLOCK, Style::default().fg(Color::Red));
     }
 }
 
 impl Module for BoardDisplay {
     fn update(&mut self, event: AppEvent, _game: &Game) -> Option<AppEvent> {
         if !self.enabled {
-            if let AppEvent::PieceSelected(_) = event { self.enabled = true }
+            if let AppEvent::PieceSelected(piece_index) = event {
+                self.enabled = true;
+                self.selected_piece = Some(piece_index);
+            }
         } else {
             match event {
                 AppEvent::MoveUp => self.cursor.move_up(),
@@ -36,9 +65,6 @@ impl Module for BoardDisplay {
                 AppEvent::MoveLeft => self.cursor.move_left(),
                 AppEvent::MoveRight => self.cursor.move_right(),
                 AppEvent::OpenPieceSelection => self.enabled = false,
-                AppEvent::PieceSelected(_) => {
-                    self.enabled = true
-                },
                 _ => ()
             }
         }
@@ -58,8 +84,7 @@ impl Module for BoardDisplay {
         let mut lines = game.board.render();
 
         if self.enabled {
-            let cursor_position = &self.cursor.area;
-            lines[cursor_position.y as usize].spans[cursor_position.x as usize] = Span::styled(BLOCK, Style::default().fg(Color::Red));
+            self.render_cursor(&mut lines, game);
         }
 
         let border_color = if self.enabled { Color::default() } else { Color::Gray };

@@ -161,7 +161,7 @@ impl Cursor {
     }
 
     fn move_down(&mut self) {
-        if self.area.y < self.max_y - 1 {
+        if self.area.y < self.max_y - self.area.height {
             self.area.y += 1
         }
     }
@@ -173,7 +173,7 @@ impl Cursor {
     }
 
     fn move_right(&mut self) {
-        if self.area.x < self.max_x - 1 {
+        if self.area.x < self.max_x - self.area.width {
             self.area.x += 1
         }
     }
