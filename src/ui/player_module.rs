@@ -4,8 +4,8 @@ use ratatui::prelude::Line;
 use ratatui::style::Style;
 use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Paragraph};
-use crate::game::Game;
-use crate::ui::{AppEvent, BLOCK, Module, ModuleKind};
+use crate::game::{Game, Player};
+use crate::ui::{AppEvent, BLOCK, Module, ModuleKind, RenderCanvas};
 
 pub struct PlayerDisplay;
 
@@ -15,9 +15,7 @@ impl Module for PlayerDisplay {
     }
 
     fn render(&mut self, frame: &mut Frame, area: Rect, game: &mut Game) {
-        let text: Vec<Line<'_>> = game.players().iter().map(|player|
-            Span::styled(format!("{}  {}", BLOCK, player.name), Style::default().fg(player.color)).into()
-        ).collect();
+        let text: Vec<Line<'_>> = game.players().iter().flat_map(Player::render).collect();
         frame.render_widget(
             Paragraph::new(text).block(Block::default().borders(Borders::ALL).title("Players")),
             area
@@ -26,5 +24,11 @@ impl Module for PlayerDisplay {
 
     fn kind(&self) -> ModuleKind {
         ModuleKind::Player
+    }
+}
+
+impl RenderCanvas for Player {
+    fn render(&self) -> Vec<Line<'_>> {
+        vec![Span::styled(format!("{}  {}", BLOCK, self.name), Style::default().fg(self.color)).into()]
     }
 }

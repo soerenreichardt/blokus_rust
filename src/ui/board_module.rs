@@ -77,14 +77,6 @@ impl Module for BoardDisplay {
         );
 
         self.vertical_scrollbar.render_scrollbar(frame, display_height, board_render_area);
-        // frame.render_stateful_widget(
-        //     Scrollbar::new(ScrollbarOrientation::HorizontalBottom),
-        //     board_render_area,
-        //     &mut ScrollbarState::default()
-        //         .viewport_content_length(1)
-        //         .content_length(20)
-        //         .position(18)
-        // );
     }
 
     fn kind(&self) -> ModuleKind {
