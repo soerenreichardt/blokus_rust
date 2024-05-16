@@ -30,11 +30,13 @@ impl FromStr for Piece {
             .lines()
             .enumerate()
             .flat_map(|(y, line)| line.chars().enumerate().filter_map(move |(x, c)| match c {
-                'x' => Some(Position { x: x as i32, y: y as i32 }),
+                'x' => Some(Position { x: x as u16, y: y as u16 }),
                 _ => None
             }))
             .collect::<Vec<_>>();
 
-        Ok(Piece::new(blocks))
+        let bounding_box_dimension = (string.lines().count() - 1) as f32;
+        let pivot_position = bounding_box_dimension / 2.0;
+        Ok(Piece::new(blocks, pivot_position))
     }
 }

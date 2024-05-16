@@ -10,7 +10,7 @@ use crate::ui::{AppEvent, BLOCK, Module, ModuleKind, RenderCanvas};
 pub struct PlayerDisplay;
 
 impl Module for PlayerDisplay {
-    fn update(&mut self, _event: AppEvent, _game: &Game) -> Option<AppEvent> {
+    fn update(&mut self, _event: AppEvent, _game: &mut Game) -> Option<AppEvent> {
         None
     }
 

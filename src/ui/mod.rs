@@ -27,7 +27,7 @@ struct App {
 }
 
 pub(crate) trait Module {
-    fn update(&mut self, event: AppEvent, game: &Game) -> Option<AppEvent>;
+    fn update(&mut self, event: AppEvent, game: &mut Game) -> Option<AppEvent>;
     fn render(&mut self, frame: &mut Frame, area: Rect, game: &mut Game);
     fn kind(&self) -> ModuleKind;
 }
@@ -60,6 +60,7 @@ enum AppEvent {
     OpenPieceSelection,
     PieceSelected(usize),
     Select,
+    Rotate,
     None
 }
 
@@ -75,9 +76,9 @@ pub fn run(game: &mut Game) -> io::Result<()> {
     app.add_module(PieceDisplay::new());
 
     let name_area_height = game.players().len() as u16 + UI_OFFSET;
-    let piece_area_height = game.height() as u16 - name_area_height + UI_OFFSET;
+    let piece_area_height = game.height() - name_area_height + UI_OFFSET;
 
-    let horizontal = Layout::horizontal([Constraint::Max((game.width() * 2) as u16 + UI_OFFSET), Constraint::Max(20)]);
+    let horizontal = Layout::horizontal([Constraint::Max((game.width() * 2) + UI_OFFSET), Constraint::Max(20)]);
     let vertical = Layout::vertical([Constraint::Max(name_area_height), Constraint::Max(piece_area_height)]);
 
     'main_loop: loop {
@@ -96,7 +97,7 @@ pub fn run(game: &mut Game) -> io::Result<()> {
         event_queue.push_back(poll_event()?);
         while let Some(event) = event_queue.pop_front() {
             if let AppEvent::Quit = event { break 'main_loop }
-            app.update_modules(event, &game, &mut event_queue);
+            app.update_modules(event, game, &mut event_queue);
         }
     }
 
@@ -117,6 +118,7 @@ fn poll_event() -> io::Result<(AppEvent)> {
                     KeyCode::Right => return Ok(AppEvent::MoveRight),
                     KeyCode::Char('i') => return Ok(AppEvent::OpenPieceSelection),
                     KeyCode::Enter => return Ok(AppEvent::Select),
+                    KeyCode::Char('c') => return Ok(AppEvent::Rotate),
                     _ => ()
                 }
             }
@@ -130,7 +132,7 @@ impl App {
         self.modules.insert(module.kind(), Box::new(module));
     }
 
-    fn update_modules(&mut self, event: AppEvent, game: &Game, event_queue: &mut VecDeque<AppEvent>) {
+    fn update_modules(&mut self, event: AppEvent, game: &mut Game, event_queue: &mut VecDeque<AppEvent>) {
         for (_, module) in self.modules.iter_mut() {
             module.update(event, game).map(|event| event_queue.push_back(event));
         }

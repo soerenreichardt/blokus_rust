@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Line, Span, Style};
@@ -12,12 +13,17 @@ pub struct BoardDisplay {
     cursor: Cursor,
     vertical_scrollbar: VerticalScrollBar,
     enabled: bool,
-    selected_piece: Option<usize>
+    selected_piece: Option<IndexedPiece>
+}
+
+struct IndexedPiece {
+    piece: Piece,
+    index: usize
 }
 
 impl BoardDisplay {
-    pub fn new(width: usize, height: usize) -> Self {
-        let cursor = Cursor::simple(width as u16, height as u16);
+    pub fn new(width: u16, height: u16) -> Self {
+        let cursor = Cursor::simple(width, height);
         BoardDisplay {
             cursor,
             vertical_scrollbar: VerticalScrollBar::default(),
@@ -26,21 +32,19 @@ impl BoardDisplay {
         }
     }
 
-    pub fn render_cursor(&mut self, lines: &mut Vec<Line<'_>>, game: &Game) {
-        match self.selected_piece {
-            Some(piece_index) => self.render_piece_cursor(lines, &game, piece_index),
+    pub fn render_cursor(&mut self, lines: &mut Vec<Line<'_>>) {
+        match &self.selected_piece {
+            Some(indexed_Piece) => self.render_piece_cursor(lines, indexed_Piece),
             None => self.render_simple_cursor(lines)
         }
     }
 
-    fn render_piece_cursor(&mut self, lines: &mut Vec<Line<'_>>, game: &Game, piece_index: usize) {
-        let piece = &game.active_player_pieces()[piece_index];
-        self.cursor.area.width = piece.num_columns();
-        self.cursor.area.height = piece.num_lines();
+    fn render_piece_cursor(&self, lines: &mut Vec<Line<'_>>, indexed_piece: &IndexedPiece) {
+        let piece = &indexed_piece.piece;
         let cursor_position = &self.cursor.area;
         for block in piece.blocks.iter() {
-            let line = cursor_position.y as usize + block.y as usize;
-            let column = cursor_position.x as usize + block.x as usize;
+            let line = (cursor_position.y + block.y) as usize;
+            let column = (cursor_position.x + block.x) as usize;
             lines[line].spans[column] = Span::styled(BLOCK, Style::default().fg(Color::Red));
         }
     }
@@ -49,14 +53,28 @@ impl BoardDisplay {
         let cursor_position = &self.cursor.area;
         lines[cursor_position.y as usize].spans[cursor_position.x as usize] = Span::styled(BLOCK, Style::default().fg(Color::Red));
     }
+
+    fn select_piece(&mut self, index: usize, game: &Game) {
+        let piece = game.active_player_pieces()[index].clone();
+
+        self.cursor.area.width = piece.num_columns();
+        self.cursor.area.height = piece.num_lines();
+        self.selected_piece = Some(IndexedPiece { piece, index });
+    }
+
+    fn rotate_piece(&mut self) {
+        if let Some(piece_index) = &mut self.selected_piece {
+            piece_index.piece.rotate()
+        }
+    }
 }
 
 impl Module for BoardDisplay {
-    fn update(&mut self, event: AppEvent, _game: &Game) -> Option<AppEvent> {
+    fn update(&mut self, event: AppEvent, game: &mut Game) -> Option<AppEvent> {
         if !self.enabled {
             if let AppEvent::PieceSelected(piece_index) = event {
                 self.enabled = true;
-                self.selected_piece = Some(piece_index);
+                self.select_piece(piece_index, &game);
             }
         } else {
             match event {
@@ -65,6 +83,7 @@ impl Module for BoardDisplay {
                 AppEvent::MoveLeft => self.cursor.move_left(),
                 AppEvent::MoveRight => self.cursor.move_right(),
                 AppEvent::OpenPieceSelection => self.enabled = false,
+                AppEvent::Rotate => self.rotate_piece(),
                 _ => ()
             }
         }
@@ -73,8 +92,8 @@ impl Module for BoardDisplay {
     }
 
     fn render(&mut self, frame: &mut Frame, area: Rect, game: &mut Game) {
-        let display_width = ((game.width() as u16) * 2) + UI_OFFSET;
-        let display_height = game.height() as u16 + UI_OFFSET;
+        let display_width = (game.width() * 2) + UI_OFFSET;
+        let display_height = game.height() + UI_OFFSET;
 
         let width = display_width.min(area.width);
         let height = display_height.min(area.height);
@@ -84,7 +103,7 @@ impl Module for BoardDisplay {
         let mut lines = game.board.render();
 
         if self.enabled {
-            self.render_cursor(&mut lines, game);
+            self.render_cursor(&mut lines);
         }
 
         let border_color = if self.enabled { Color::default() } else { Color::Gray };
@@ -112,9 +131,9 @@ impl Module for BoardDisplay {
 impl RenderCanvas for Board {
     fn render(&self) -> Vec<Line<'_>> {
         let mut lines: Vec<Line<'_>> = vec![];
-        for y in 0..self.height as i32 {
+        for y in 0..self.height {
             let mut line = vec![];
-            for x in 0..self.width as i32 {
+            for x in 0..self.width {
                 let color = match self.get_state_on_position(&Position { x, y }).unwrap() {
                     State::Free => Color::Gray,
                     State::Occupied(_) => Color::Blue

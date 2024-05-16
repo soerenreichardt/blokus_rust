@@ -7,8 +7,8 @@ pub struct Game {
 }
 
 pub(crate) struct Board {
-    pub(crate) width: usize,
-    pub(crate) height: usize,
+    pub(crate) width: u16,
+    pub(crate) height: u16,
     tiles: Vec<Vec<State>>
 }
 
@@ -33,30 +33,31 @@ pub struct Player {
 #[derive(Clone, Debug)]
 pub struct Piece {
     pub(crate) blocks: Vec<Position>,
-    pivot: Position,
+    pivot: f32,
     num_lines: u16,
-    num_columns: u16
+    num_columns: u16,
+    pub(crate) bounding_box_offset: Position
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Position {
-    pub x: i32,
-    pub y: i32
+    pub x: u16,
+    pub y: u16
 }
 
 impl Game {
-    pub fn new(width: usize, height: usize, players: Players) -> Self {
+    pub fn new(width: u16, height: u16, players: Players) -> Self {
         Game {
             board: Board::new(width, height),
             players
         }
     }
 
-    pub fn width(&self) -> usize {
+    pub fn width(&self) -> u16 {
         self.board.width
     }
 
-    pub fn height(&self) -> usize {
+    pub fn height(&self) -> u16 {
         self.board.height
     }
 
@@ -74,11 +75,11 @@ impl Game {
 }
 
 impl Board {
-    fn new(width: usize, height: usize) -> Self {
+    fn new(width: u16, height: u16) -> Self {
         Board {
             width,
             height,
-            tiles: vec![vec![State::Free; width]; height]
+            tiles: vec![vec![State::Free; width as usize]; height as usize]
         }
     }
 
@@ -106,17 +107,17 @@ impl Board {
 }
 
 impl Position {
-    pub fn check_within_bounds(&self, width: usize, height: usize) -> Result<(), String> {
+    pub fn check_within_bounds(&self, width: u16, height: u16) -> Result<(), String> {
         match self {
-            Position { x, y } if *x < 0 || *x >= width as i32 || *y < 0 || *y >= height as i32 => Err(format!("Out of bounds ({x}, {y})").to_string()),
+            Position { x, y } if *x < 0 || *x >= width || *y < 0 || *y >= height => Err(format!("Out of bounds ({x}, {y})").to_string()),
             _ => Ok(())
         }
     }
 
-    pub fn rotate_around_pivot(&mut self, pivot_position: &Position) {
+    pub fn rotate_around_pivot(&mut self, pivot_position: f32) {
         let temp_x = self.x;
-        self.x = pivot_position.x + pivot_position.y - self.y;
-        self.y = pivot_position.y - pivot_position.x + temp_x;
+        self.x = (pivot_position + pivot_position - self.y as f32) as u16;
+        self.y = temp_x;
     }
 }
 
@@ -131,18 +132,34 @@ impl std::ops::Add for Position {
     }
 }
 
+impl std::ops::Sub for &Position {
+    type Output = Position;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Position {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y
+        }
+    }
+}
+
 impl Piece {
-    pub fn new(blocks: Vec<Position>) -> Self {
-        let pivot = Self::find_pivot_position(&blocks);
-        let num_lines = Self::calculate_num_lines(&blocks);
-        let num_columns = Self::calculate_num_columns(&blocks);
-        Piece { blocks, pivot, num_lines, num_columns }
+    pub fn new(blocks: Vec<Position>, pivot: f32) -> Self {
+        let min_x = Self::min_x(&blocks);
+        let min_y = Self::min_y(&blocks);
+        let num_lines = Self::calculate_num_lines(&blocks, min_y);
+        let num_columns = Self::calculate_num_columns(&blocks, min_x);
+        let bounding_box_offset = Position { x: min_x, y: min_y };
+        Piece { blocks, pivot, num_lines, num_columns, bounding_box_offset }
     }
 
     pub fn rotate(&mut self) {
         for block in self.blocks.iter_mut() {
-            block.rotate_around_pivot(&self.pivot)
+            block.rotate_around_pivot(self.pivot);
         }
+        let temp = self.num_columns;
+        self.num_columns = self.num_lines;
+        self.num_lines = temp;
     }
 
     pub fn num_lines(&self) -> u16 {
@@ -153,28 +170,22 @@ impl Piece {
         self.num_columns
     }
 
-    fn find_pivot_position(blocks: &[Position]) -> Position {
-        let num_blocks = blocks.len();
-        let mut pivot_x = 0.0f64;
-        let mut pivot_y = 0.0f64;
-        for block in blocks {
-            pivot_x += block.x as f64 / num_blocks as f64;
-            pivot_y += block.y as f64 / num_blocks as f64;
-        }
-        Position {
-            x: pivot_x as i32,
-            y: pivot_y as i32
-        }
+    fn calculate_num_lines(blocks: &[Position], min_y: u16) -> u16 {
+        let max_y = blocks.iter().map(|block| block.y).max().unwrap();
+        (max_y - min_y) + 1
     }
 
-    fn calculate_num_lines(blocks: &[Position]) -> u16 {
-        let max_y = blocks.iter().map(|block| block.y).max().unwrap() as u16;
-        max_y + 1
+    fn calculate_num_columns(blocks: &[Position], min_x: u16) -> u16 {
+        let max_x = blocks.iter().map(|block| block.x).max().unwrap();
+        (max_x - min_x) + 1
     }
 
-    fn calculate_num_columns(blocks: &[Position]) -> u16 {
-        let max_x = blocks.iter().map(|block| block.x).max().unwrap() as u16;
-        max_x + 1
+    fn min_x(blocks: &[Position]) -> u16 {
+        blocks.iter().map(|block| block.x).min().unwrap()
+    }
+
+    fn min_y(blocks: &[Position]) -> u16 {
+        blocks.iter().map(|block| block.y).min().unwrap()
     }
 }
 
@@ -193,7 +204,7 @@ mod tests {
     use super::*;
 
     fn piece_1x1() -> Piece {
-        Piece::new(vec![Position { x: 0, y : 0 }])
+        Piece::new(vec![Position { x: 0, y : 0 }], 0.0)
     }
 
     #[test]
@@ -210,12 +221,19 @@ mod tests {
 
     #[test]
     fn should_rotate_block() {
-        let mut piece = Piece::new(vec![Position { x: 0, y: 0 }, Position { x: 1, y: 0 }, Position { x: 2, y: 0 }]);
+        let mut piece = Piece::new(vec![Position { x: 0, y: 1 }, Position { x: 1, y: 1 }, Position { x: 2, y: 1 }], 1.0);
 
         piece.rotate();
-        assert_eq!(piece.blocks, vec![Position { x: 1, y: -1}, Position { x: 1, y: 0}, Position { x: 1, y: 1}]);
+        assert_eq!(piece.blocks, vec![Position { x: 1, y: 0}, Position { x: 1, y: 1}, Position { x: 1, y: 2}]);
 
         piece.rotate();
-        assert_eq!(piece.blocks, vec![Position { x: 2, y: 0}, Position { x: 1, y: 0}, Position { x: 0, y: 0}]);
+        assert_eq!(piece.blocks, vec![Position { x: 2, y: 1}, Position { x: 1, y: 1}, Position { x: 0, y: 1}]);
+    }
+
+    #[test]
+    fn should_rotate_box_block() {
+        let mut piece = Piece::new(vec![Position { x: 0, y: 0 }, Position { x: 1, y: 0 }, Position { x: 0, y: 1 }, Position { x: 1, y: 1 }], 0.5);
+        piece.rotate();
+        assert_eq!(piece.blocks, vec![Position { x: 1, y: 0 }, Position { x: 1, y: 1 }, Position { x: 0, y: 0 }, Position { x: 0, y: 1 }])
     }
 }

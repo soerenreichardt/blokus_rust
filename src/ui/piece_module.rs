@@ -60,7 +60,7 @@ impl PieceDisplay {
 }
 
 impl Module for PieceDisplay {
-    fn update(&mut self, event: AppEvent, game: &Game) -> Option<AppEvent> {
+    fn update(&mut self, event: AppEvent, game: &mut Game) -> Option<AppEvent> {
         if let AppEvent::OpenPieceSelection = event {
             self.enabled = true
         }
@@ -135,8 +135,8 @@ impl<'a> RenderCanvas for RenderPiece<'a> {
         let mut canvas = vec![vec![empty_tile; num_columns]; num_lines];
         let color = if self.position == self.selection_index { Color::Blue } else { Color::Gray };
         for block in self.piece.blocks.iter() {
-            // casting block y|x to usize is a problem as rotated pieces can have negative coordinates
-            canvas[block.y as usize][block.x as usize] = Span::styled(BLOCK, Style::default().fg(color))
+            let raw_position = block - &self.piece.bounding_box_offset;
+            canvas[raw_position.y as usize][raw_position.x as usize] = Span::styled(BLOCK, Style::default().fg(color))
         }
         canvas.into_iter().map(|line| line.into()).collect()
     }
