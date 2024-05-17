@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Line, Span, Style};
@@ -32,14 +30,14 @@ impl BoardDisplay {
         }
     }
 
-    pub fn render_cursor(&mut self, lines: &mut Vec<Line<'_>>) {
+    pub fn render_cursor(&mut self, lines: &mut [Line<'_>]) {
         match &self.selected_piece {
-            Some(indexed_Piece) => self.render_piece_cursor(lines, indexed_Piece),
+            Some(indexed_piece) => self.render_piece_cursor(lines, indexed_piece),
             None => self.render_simple_cursor(lines)
         }
     }
 
-    fn render_piece_cursor(&self, lines: &mut Vec<Line<'_>>, indexed_piece: &IndexedPiece) {
+    fn render_piece_cursor(&self, lines: &mut [Line<'_>], indexed_piece: &IndexedPiece) {
         let piece = &indexed_piece.piece;
         let cursor_position = &self.cursor.area;
         for block in piece.blocks.iter() {
@@ -49,7 +47,7 @@ impl BoardDisplay {
         }
     }
 
-    fn render_simple_cursor(&mut self, lines: &mut Vec<Line>) {
+    fn render_simple_cursor(&mut self, lines: &mut [Line<'_>]) {
         let cursor_position = &self.cursor.area;
         lines[cursor_position.y as usize].spans[cursor_position.x as usize] = Span::styled(BLOCK, Style::default().fg(Color::Red));
     }
@@ -74,7 +72,7 @@ impl Module for BoardDisplay {
         if !self.enabled {
             if let AppEvent::PieceSelected(piece_index) = event {
                 self.enabled = true;
-                self.select_piece(piece_index, &game);
+                self.select_piece(piece_index, game);
             }
         } else {
             match event {

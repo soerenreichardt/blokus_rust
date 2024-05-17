@@ -33,7 +33,7 @@ impl PieceDisplay {
 
     fn move_cursor_down(&mut self, game: &Game) {
         if self.selection_index < game.active_player_pieces().len() - 1 {
-            self.cursor.area.y += (&game.active_player_pieces()[self.selection_index]).num_lines() + 1;
+            self.cursor.area.y += game.active_player_pieces()[self.selection_index].num_lines() + 1;
             self.selection_index += 1;
             self.update_cursor_dimensions(&game.active_player_pieces()[self.selection_index]);
         }
@@ -72,7 +72,8 @@ impl Module for PieceDisplay {
                 _ => ()
             }
         }
-        return None;
+
+        None
     }
 
     fn render(&mut self, frame: &mut Frame, widget_area: Rect, game: &mut Game) {

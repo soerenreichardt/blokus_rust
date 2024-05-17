@@ -51,7 +51,7 @@ struct Cursor {
 }
 
 #[derive(Copy, Clone, Debug)]
-enum AppEvent {
+pub(crate) enum AppEvent {
     Quit,
     MoveUp,
     MoveDown,
@@ -106,7 +106,7 @@ pub fn run(game: &mut Game) -> io::Result<()> {
     Ok(())
 }
 
-fn poll_event() -> io::Result<(AppEvent)> {
+fn poll_event() -> io::Result<AppEvent> {
     if event::poll(std::time::Duration::from_millis(50))? {
         if let Event::Key(key) = event::read()? {
             if key.kind == event::KeyEventKind::Press {
@@ -134,7 +134,9 @@ impl App {
 
     fn update_modules(&mut self, event: AppEvent, game: &mut Game, event_queue: &mut VecDeque<AppEvent>) {
         for (_, module) in self.modules.iter_mut() {
-            module.update(event, game).map(|event| event_queue.push_back(event));
+            if let Some(event) = module.update(event, game) {
+                event_queue.push_back(event);
+            }
         }
     }
 

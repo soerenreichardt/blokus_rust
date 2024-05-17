@@ -109,7 +109,7 @@ impl Board {
 impl Position {
     pub fn check_within_bounds(&self, width: u16, height: u16) -> Result<(), String> {
         match self {
-            Position { x, y } if *x < 0 || *x >= width || *y < 0 || *y >= height => Err(format!("Out of bounds ({x}, {y})").to_string()),
+            Position { x, y } if *x >= width || *y >= height => Err(format!("Out of bounds ({x}, {y})").to_string()),
             _ => Ok(())
         }
     }
@@ -157,9 +157,7 @@ impl Piece {
         for block in self.blocks.iter_mut() {
             block.rotate_around_pivot(self.pivot);
         }
-        let temp = self.num_columns;
-        self.num_columns = self.num_lines;
-        self.num_lines = temp;
+        std::mem::swap(&mut self.num_columns, &mut self.num_lines)
     }
 
     pub fn num_lines(&self) -> u16 {
