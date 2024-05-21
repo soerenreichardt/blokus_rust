@@ -3,20 +3,25 @@ use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Line, Span, Style};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 
-use crate::game::{Board, Game, Piece, Position, State};
+use crate::game::{Board, Game, Piece, Position};
 use crate::ui::{AppEvent, BLOCK, Cursor, Module, ModuleKind, RenderCanvas, UI_OFFSET};
 use crate::ui::scrollbars::VerticalScrollBar;
 
 pub struct BoardDisplay {
     cursor: Cursor,
     vertical_scrollbar: VerticalScrollBar,
-    enabled: bool,
-    selected_piece: Option<IndexedPiece>
+    state: State
 }
 
 struct IndexedPiece {
     piece: Piece,
     index: usize
+}
+
+enum State {
+    Default,
+    PieceSelected(IndexedPiece),
+    Disabled
 }
 
 impl BoardDisplay {
@@ -25,15 +30,15 @@ impl BoardDisplay {
         BoardDisplay {
             cursor,
             vertical_scrollbar: VerticalScrollBar::default(),
-            enabled: true,
-            selected_piece: None
+            state: State::Default
         }
     }
 
     pub fn render_cursor(&mut self, lines: &mut [Line<'_>]) {
-        match &self.selected_piece {
-            Some(indexed_piece) => self.render_piece_cursor(lines, indexed_piece),
-            None => self.render_simple_cursor(lines)
+        match &self.state {
+            State::PieceSelected(indexed_piece) => self.render_piece_cursor(lines, indexed_piece),
+            State::Default => self.render_simple_cursor(lines),
+            _ => ()
         }
     }
 
@@ -57,21 +62,27 @@ impl BoardDisplay {
 
         self.cursor.area.width = piece.num_columns();
         self.cursor.area.height = piece.num_lines();
-        self.selected_piece = Some(IndexedPiece { piece, index });
+        self.state = State::PieceSelected(IndexedPiece { piece, index });
     }
 
     fn rotate_piece(&mut self) {
-        if let Some(piece_index) = &mut self.selected_piece {
+        if let State::PieceSelected(piece_index) = &mut self.state {
             piece_index.piece.rotate()
+        }
+    }
+
+    fn is_enabled(&self) -> bool {
+        match self.state {
+            State::Disabled => false,
+            _ => true
         }
     }
 }
 
 impl Module for BoardDisplay {
     fn update(&mut self, event: AppEvent, game: &mut Game) -> Option<AppEvent> {
-        if !self.enabled {
+        if !self.is_enabled() {
             if let AppEvent::PieceSelected(piece_index) = event {
-                self.enabled = true;
                 self.select_piece(piece_index, game);
             }
         } else {
@@ -80,7 +91,7 @@ impl Module for BoardDisplay {
                 AppEvent::MoveDown => self.cursor.move_down(),
                 AppEvent::MoveLeft => self.cursor.move_left(),
                 AppEvent::MoveRight => self.cursor.move_right(),
-                AppEvent::OpenPieceSelection => self.enabled = false,
+                AppEvent::OpenPieceSelection => self.state = State::Disabled,
                 AppEvent::Rotate => self.rotate_piece(),
                 _ => ()
             }
@@ -100,11 +111,11 @@ impl Module for BoardDisplay {
 
         let mut lines = game.board.render();
 
-        if self.enabled {
+        if self.is_enabled() {
             self.render_cursor(&mut lines);
         }
 
-        let border_color = if self.enabled { Color::default() } else { Color::Gray };
+        let border_color = if self.is_enabled() { Color::default() } else { Color::Gray };
 
         frame.render_widget(
             Paragraph::new(lines)
@@ -133,8 +144,8 @@ impl RenderCanvas for Board {
             let mut line = vec![];
             for x in 0..self.width {
                 let color = match self.get_state_on_position(&Position { x, y }).unwrap() {
-                    State::Free => Color::Gray,
-                    State::Occupied(_) => Color::Blue
+                    crate::game::State::Free => Color::Gray,
+                    crate::game::State::Occupied(_) => Color::Blue
                 };
                 line.push(Span::styled(BLOCK, Style::default().fg(color)))
             }
