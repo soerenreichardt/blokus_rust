@@ -73,7 +73,8 @@ impl Game {
         let player_index = self.players.active_player_index;
         let mut piece = self.active_player_mut().take_piece(piece_index);
         (0..rotations).for_each(|_| piece.rotate());
-        if let Some(piece) = self.board.place_piece(piece, position, player_index)? {
+        if let Some(mut piece) = self.board.place_piece(piece, position, player_index)? {
+            (0..4-rotations).for_each(|_| piece.rotate());
             self.active_player_mut().insert_piece(piece_index, piece);
             return Ok(false)
         }
