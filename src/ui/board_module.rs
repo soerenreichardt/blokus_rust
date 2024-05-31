@@ -15,7 +15,8 @@ pub struct BoardDisplay {
 
 struct IndexedPiece {
     piece: Piece,
-    index: usize
+    index: usize,
+    rotations: u16
 }
 
 enum State {
@@ -62,12 +63,23 @@ impl BoardDisplay {
 
         self.cursor.area.width = piece.num_columns();
         self.cursor.area.height = piece.num_lines();
-        self.state = State::PieceSelected(IndexedPiece { piece, index });
+        self.state = State::PieceSelected(IndexedPiece { piece, index, rotations: 0 });
     }
 
     fn rotate_piece(&mut self) {
         if let State::PieceSelected(piece_index) = &mut self.state {
-            piece_index.piece.rotate()
+            piece_index.rotate()
+        }
+    }
+
+    fn place_piece(&mut self, game: &mut Game) {
+        match &self.state {
+            State::PieceSelected(indexed_piece) => if game.place_piece(indexed_piece.index, indexed_piece.rotations, Position { x: self.cursor.area.x, y: self.cursor.area.y }).expect("Out of bounds") {
+                self.state = State::Default
+            } else {
+                // render failure animation
+            }
+            _ => ()
         }
     }
 
@@ -93,6 +105,7 @@ impl Module for BoardDisplay {
                 AppEvent::MoveRight => self.cursor.move_right(),
                 AppEvent::OpenPieceSelection => self.state = State::Disabled,
                 AppEvent::Rotate => self.rotate_piece(),
+                AppEvent::Select => self.place_piece(game),
                 _ => ()
             }
         }
@@ -152,5 +165,12 @@ impl RenderCanvas for Board {
             lines.push(line.into());
         }
         lines
+    }
+}
+
+impl IndexedPiece {
+    fn rotate(&mut self) {
+        self.rotations = (self.rotations + 1) % 4;
+        self.piece.rotate();
     }
 }

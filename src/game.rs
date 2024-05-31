@@ -69,8 +69,23 @@ impl Game {
         &self.active_player().available_pieces
     }
 
+    pub fn place_piece(&mut self, piece_index: usize, rotations: u16, position: Position) -> Result<bool, String>{
+        let player_index = self.players.active_player_index;
+        let mut piece = self.active_player_mut().take_piece(piece_index);
+        (0..rotations).for_each(|_| piece.rotate());
+        if let Some(piece) = self.board.place_piece(piece, position, player_index)? {
+            self.active_player_mut().insert_piece(piece_index, piece);
+            return Ok(false)
+        }
+        Ok(true)
+    }
+
     fn active_player(&self) -> &Player {
         &self.players.players[self.players.active_player_index]
+    }
+
+    fn active_player_mut(&mut self) -> &mut Player {
+        &mut self.players.players[self.players.active_player_index]
     }
 }
 
@@ -83,15 +98,17 @@ impl Board {
         }
     }
 
-    fn place_piece(&mut self, piece: Piece, offset: Position, player_index: usize) -> Result<bool, String> {
-        for local_position in piece.blocks {
-            let board_position = local_position + offset.clone();
-            match self.get_state_on_position(&board_position)? {
-                State::Free => self.occupy_position(&board_position, player_index)?,
-                State::Occupied(_) => return Ok(false)
-            }
+    fn place_piece(&mut self, piece: Piece, offset: Position, player_index: usize) -> Result<Option<Piece>, String> {
+        if !self.piece_can_be_placed(&piece, &offset) {
+            return Ok(Some(piece))
         }
-        Ok(true)
+
+        for local_position in piece.blocks.iter() {
+            let board_position = local_position + &offset;
+            self.occupy_position(&board_position, player_index)?
+        }
+
+        Ok(None)
     }
 
     pub fn get_state_on_position(&self, position: &Position) -> Result<State, String> {
@@ -100,9 +117,20 @@ impl Board {
     }
 
     fn occupy_position(&mut self, position: &Position, player_index: usize) -> Result<(), String> {
-        position.check_within_bounds(self.width, self.height)?;
         self.tiles[position.y as usize][position.x as usize] = State::Occupied(player_index);
         Ok(())
+    }
+
+    fn piece_can_be_placed(&self, piece: &Piece, offset: &Position) -> bool {
+        for local_position in piece.blocks.iter() {
+            let board_position = local_position + offset;
+            match self.get_state_on_position(&board_position).unwrap() {
+                State::Free => (),
+                State::Occupied(_) => return false
+            }
+        }
+
+        true
     }
 }
 
@@ -122,6 +150,17 @@ impl Position {
 }
 
 impl std::ops::Add for Position {
+    type Output = Position;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Position {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y
+        }
+    }
+}
+
+impl std::ops::Add for &Position {
     type Output = Position;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -157,7 +196,8 @@ impl Piece {
         for block in self.blocks.iter_mut() {
             block.rotate_around_pivot(self.pivot);
         }
-        std::mem::swap(&mut self.num_columns, &mut self.num_lines)
+        std::mem::swap(&mut self.num_columns, &mut self.num_lines);
+        std::mem::swap(&mut self.bounding_box_offset.x, &mut self.bounding_box_offset.y);
     }
 
     pub fn num_lines(&self) -> u16 {
@@ -194,6 +234,16 @@ impl Players {
             players,
             active_player_index
         }
+    }
+}
+
+impl Player {
+    fn take_piece(&mut self, index: usize) -> Piece {
+        self.available_pieces.remove(index)
+    }
+
+    fn insert_piece(&mut self, index: usize, piece: Piece) {
+        self.available_pieces.insert(index, piece)
     }
 }
 
