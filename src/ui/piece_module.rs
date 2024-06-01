@@ -78,9 +78,10 @@ impl Module for PieceDisplay {
 
     fn render(&mut self, frame: &mut Frame, widget_area: Rect, game: &mut Game) {
         let pieces = game.active_player_pieces();
+        let player_color = &game.active_player().color;
         let render_pieces = pieces.iter()
             .enumerate()
-            .map(|(row, piece)| RenderPiece::new(piece, self.selection_index, row))
+            .map(|(row, piece)| RenderPiece::new(piece, player_color, self.selection_index, row))
             .collect::<Vec<_>>();
         let text = render_pieces.iter()
             .flat_map(Self::render_piece)
@@ -113,14 +114,16 @@ impl Module for PieceDisplay {
 
 struct RenderPiece<'a> {
     piece: &'a Piece,
+    color: &'a Color,
     selection_index: usize,
-    position: usize
+    position: usize,
 }
 
 impl<'a> RenderPiece<'a> {
-    fn new(piece: &'a Piece, selection_index: usize, position: usize) -> Self {
+    fn new(piece: &'a Piece, color: &'a Color, selection_index: usize, position: usize) -> Self {
         RenderPiece {
             piece,
+            color,
             selection_index,
             position
         }
@@ -134,7 +137,7 @@ impl<'a> RenderCanvas for RenderPiece<'a> {
         let num_lines = self.piece.num_lines() as usize;
 
         let mut canvas = vec![vec![empty_tile; num_columns]; num_lines];
-        let color = if self.position == self.selection_index { Color::Blue } else { Color::Gray };
+        let color = if self.position == self.selection_index { *self.color } else { Color::Gray };
         for block in self.piece.blocks() {
             canvas[block.y as usize][block.x as usize] = Span::styled(BLOCK, Style::default().fg(color))
         }

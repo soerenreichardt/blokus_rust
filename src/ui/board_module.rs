@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::iter::Map;
 use std::ops::Add;
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -135,7 +137,8 @@ impl Module for BoardDisplay {
         let board_render_area = Rect { x: area.x, y: area.y, width, height};
         self.vertical_scrollbar.update_scrollbar(board_render_area, &self.cursor);
 
-        let mut lines = game.board.render();
+        let colored_board = ColoredBoard { board: &game.board, colors: game.get_color_map() };
+        let mut lines = colored_board.render();
 
         if self.is_enabled() {
             self.render_cursor(&mut lines);
@@ -163,15 +166,20 @@ impl Module for BoardDisplay {
     }
 }
 
-impl RenderCanvas for Board {
+struct ColoredBoard<'a> {
+    board: &'a Board,
+    colors: HashMap<usize, Color>
+}
+
+impl <'a> RenderCanvas for ColoredBoard<'a> {
     fn render(&self) -> Vec<Line<'_>> {
         let mut lines: Vec<Line<'_>> = vec![];
-        for y in 0..self.height {
+        for y in 0..self.board.height {
             let mut line = vec![];
-            for x in 0..self.width {
-                let color = match self.get_state_on_position(&Position { x, y }).unwrap() {
+            for x in 0..self.board.width {
+                let color = match self.board.get_state_on_position(&Position { x, y }).unwrap() {
                     crate::game::State::Free => Color::Gray,
-                    crate::game::State::Occupied(_) => Color::Blue
+                    crate::game::State::Occupied(player_id) => *self.colors.get(&player_id).unwrap()
                 };
                 line.push(Span::styled(BLOCK, Style::default().fg(color)))
             }

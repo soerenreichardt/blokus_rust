@@ -1,5 +1,4 @@
-use std::iter::Map;
-use std::slice::Iter;
+use std::collections::HashMap;
 use rand::random;
 use ratatui::style::Color;
 
@@ -83,8 +82,16 @@ impl Game {
         Ok(true)
     }
 
-    fn active_player(&self) -> &Player {
+    pub fn active_player(&self) -> &Player {
         &self.players.players[self.players.active_player_index]
+    }
+
+    pub fn get_color_map(&self) -> HashMap<usize, Color> {
+        self.players()
+            .iter()
+            .enumerate()
+            .map(|(id, player)| (id, player.color))
+            .collect::<HashMap<usize, Color>>()
     }
 
     fn active_player_mut(&mut self) -> &mut Player {
