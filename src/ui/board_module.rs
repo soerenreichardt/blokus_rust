@@ -50,7 +50,7 @@ impl BoardDisplay {
     pub fn render_cursor(&mut self, lines: &mut [Line<'_>], board: &Board, color_map: &HashMap<usize, (Color, Color)>, player: &Player) {
         match &self.state {
             State::PieceSelected(indexed_piece) => self.render_piece_cursor(lines, indexed_piece, board, color_map, player),
-            State::Default => self.render_simple_cursor(lines),
+            State::Default => self.render_simple_cursor(lines, player),
             _ => ()
         }
     }
@@ -72,9 +72,9 @@ impl BoardDisplay {
         }
     }
 
-    fn render_simple_cursor(&mut self, lines: &mut [Line<'_>]) {
+    fn render_simple_cursor(&mut self, lines: &mut [Line<'_>], player: &Player) {
         let cursor_position = &self.cursor.area;
-        lines[cursor_position.y as usize].spans[cursor_position.x as usize] = Span::styled(BLOCK, Style::default().fg(Color::Red));
+        lines[cursor_position.y as usize].spans[cursor_position.x as usize] = Span::styled(BLOCK, Style::default().fg(player.color));
     }
 
     fn select_piece(&mut self, index: usize, game: &Game) {

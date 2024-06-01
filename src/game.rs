@@ -152,18 +152,22 @@ impl Board {
     }
 
     fn piece_can_be_placed(&self, piece: &Piece, offset: &Position, player_index: usize, first_round: bool) -> bool {
-        let can_be_placed_in_first_round = piece.blocks()
+        let can_generally_be_placed = piece.blocks()
             .map(|block| &block + offset)
             .all(|position| self.block_position_is_not_occupied(&position)
                     && self.block_is_not_adjacent_to_other_blocks_from_same_player(&position, player_index));
 
-        if !first_round {
+        return if first_round {
+            let touches_corner = piece.blocks()
+                .map(|block| &block + offset).find(|position| self.block_touches_corner(position))
+                .is_some();
+            touches_corner && can_generally_be_placed
+        } else {
             let is_diagonally_adjacent = piece.blocks()
                 .map(|block| &block + offset).find(|position| self.block_is_diagonally_adjacent_to_block_from_same_player(position, player_index))
                 .is_some();
-            return is_diagonally_adjacent && can_be_placed_in_first_round;
+            is_diagonally_adjacent && can_generally_be_placed
         }
-        can_be_placed_in_first_round
     }
 
     fn block_position_is_not_occupied(&self, position: &Position) -> bool {
@@ -232,6 +236,26 @@ impl Board {
                 State::Occupied(index) if index == player_index => return true,
                 _ => ()
             }
+        }
+
+        false
+    }
+
+    fn block_touches_corner(&self, position: &Position) -> bool {
+        if position.x == 0 && position.y == 0 {
+            return true;
+        }
+
+        if position.x == self.width - 1 && position.y == 0 {
+            return true;
+        }
+
+        if position.x == 0 && position.y == self.height - 1 {
+            return true;
+        }
+
+        if position.x == self.width - 1 && position.y == self.height - 1 {
+            return true;
         }
 
         false
@@ -383,13 +407,13 @@ mod tests {
     #[test]
     fn should_place_block() {
         let mut board = Board::new(1, 1);
-        let was_placed = board.place_piece(piece_1x1(), Position { x: 0, y: 0 }, 0).unwrap();
-        assert!(was_placed);
+        let was_placed = board.place_piece(piece_1x1(), Position { x: 0, y: 0 }, 0, true).unwrap();
+        assert!(was_placed.is_none());
 
         assert_eq!(board.get_state_on_position(&Position { x: 0, y: 0 }).unwrap(), State::Occupied(0));
 
-        let was_placed = board.place_piece(piece_1x1(), Position { x: 0, y: 0 }, 0).unwrap();
-        assert!(!was_placed)
+        let was_placed = board.place_piece(piece_1x1(), Position { x: 0, y: 0 }, 0, true).unwrap();
+        assert!(was_placed.is_some())
     }
 
     #[test]
