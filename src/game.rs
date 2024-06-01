@@ -29,7 +29,8 @@ pub struct Player {
     pub name: String,
     pub color: Color,
     pub secondary_color: Color,
-    pub available_pieces: Vec<Piece>
+    pub available_pieces: Vec<Piece>,
+    pub first_move: bool
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -88,12 +89,16 @@ impl Game {
         &self.players.players[self.players.active_player_index]
     }
 
-    pub fn get_color_map(&self) -> HashMap<usize, Color> {
+    pub fn active_player_index(&self) -> usize {
+        self.players.active_player_index
+    }
+
+    pub fn get_color_map(&self) -> HashMap<usize, (Color, Color)> {
         self.players()
             .iter()
             .enumerate()
-            .map(|(id, player)| (id, player.color))
-            .collect::<HashMap<usize, Color>>()
+            .map(|(id, player)| (id, (player.color, player.secondary_color)))
+            .collect::<HashMap<usize, (Color, Color)>>()
     }
 
     fn switch_to_next_player(&mut self) {
@@ -270,6 +275,16 @@ impl Players {
 }
 
 impl Player {
+    pub fn new(name: String, color: Color, secondary_color: Color, available_pieces: Vec<Piece>) -> Self {
+        Player {
+            name,
+            color,
+            secondary_color,
+            available_pieces,
+            first_move: true
+        }
+    }
+
     fn take_piece(&mut self, index: usize) -> Piece {
         self.available_pieces.remove(index)
     }

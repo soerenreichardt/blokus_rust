@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ratatui::Frame;
-use ratatui::layout::Rect;
+use ratatui::layout::{Corner, Rect};
 use ratatui::prelude::{Color, Line, Span, Style, Stylize};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 
@@ -10,7 +10,9 @@ use crate::ui::{AppEvent, BLOCK, Cursor, Module, ModuleKind, RenderCanvas, SHADE
 use crate::ui::scrollbars::VerticalScrollBar;
 
 pub struct BoardDisplay {
+    cursors: [Cursor; 4],
     cursor: Cursor,
+    index: usize,
     vertical_scrollbar: VerticalScrollBar,
     state: State
 }
@@ -28,16 +30,24 @@ enum State {
 }
 
 impl BoardDisplay {
-    pub fn new(width: u16, height: u16) -> Self {
-        let cursor = Cursor::simple(width, height);
+    pub fn new(width: u16, height: u16, player_index: usize) -> Self {
+        let cursors = [
+            Cursor::simple(Corner::TopLeft, width, height),
+            Cursor::simple(Corner::TopRight, width, height),
+            Cursor::simple(Corner::BottomLeft, width, height),
+            Cursor::simple(Corner::BottomRight, width, height)
+        ];
+        let cursor = cursors[player_index].clone();
         BoardDisplay {
+            cursors,
             cursor,
+            index: player_index,
             vertical_scrollbar: VerticalScrollBar::default(),
             state: State::Default
         }
     }
 
-    pub fn render_cursor(&mut self, lines: &mut [Line<'_>], board: &Board, color_map: &HashMap<usize, Color>, player: &Player) {
+    pub fn render_cursor(&mut self, lines: &mut [Line<'_>], board: &Board, color_map: &HashMap<usize, (Color, Color)>, player: &Player) {
         match &self.state {
             State::PieceSelected(indexed_piece) => self.render_piece_cursor(lines, indexed_piece, board, color_map, player),
             State::Default => self.render_simple_cursor(lines),
@@ -45,7 +55,7 @@ impl BoardDisplay {
         }
     }
 
-    fn render_piece_cursor(&self, lines: &mut [Line<'_>], indexed_piece: &IndexedPiece, board: &Board, color_map: &HashMap<usize, Color>, player: &Player) {
+    fn render_piece_cursor(&self, lines: &mut [Line<'_>], indexed_piece: &IndexedPiece, board: &Board, color_map: &HashMap<usize, (Color, Color)>, player: &Player) {
         let piece = &indexed_piece.piece;
         let cursor_position = &self.cursor.area;
         for block in piece.blocks() {
@@ -54,8 +64,8 @@ impl BoardDisplay {
             let content = match board.get_state_on_position(&Position { x: column as u16, y: line as u16 }).expect("Out of bounds") {
                 crate::game::State::Free => Span::styled(BLOCK, Style::default().fg(player.secondary_color)),
                 crate::game::State::Occupied(player_index) => {
-                    let color = *color_map.get(&player_index).unwrap();
-                    Span::styled(SHADED_BLOCK, Style::default().fg(Color::Red).bg(color))
+                    let (color, _) = *color_map.get(&player_index).unwrap();
+                    Span::styled(SHADED_BLOCK, Style::default().fg(player.color).bg(color))
                 }
             };
             lines[line].spans[column] = content;
@@ -72,6 +82,8 @@ impl BoardDisplay {
 
         self.cursor.area.width = piece.num_columns();
         self.cursor.area.height = piece.num_lines();
+        self.cursor.area.x = self.cursor.area.x.clamp(0, game.width() - piece.num_columns());
+        self.cursor.area.y = self.cursor.area.y.clamp(0, game.height() - piece.num_lines());
         self.state = State::PieceSelected(IndexedPiece { piece, index, rotations: 0 });
     }
 
@@ -116,6 +128,14 @@ impl BoardDisplay {
 
 impl Module for BoardDisplay {
     fn update(&mut self, event: AppEvent, game: &mut Game) -> Option<AppEvent> {
+        if let AppEvent::PiecePlaced = event {
+            let index = game.active_player_index();
+            let original_cursor = &mut self.cursors[self.index];
+            original_cursor.area.x = self.cursor.area.x;
+            original_cursor.area.y = self.cursor.area.y;
+            self.cursor = self.cursors[index].clone();
+            self.index = index;
+        }
         if !self.is_enabled() {
             if let AppEvent::PieceSelected(piece_index) = event {
                 self.select_piece(piece_index, game);
@@ -179,7 +199,7 @@ impl Module for BoardDisplay {
 
 struct ColoredBoard<'a> {
     board: &'a Board,
-    colors: &'a HashMap<usize, Color>
+    colors: &'a HashMap<usize, (Color, Color)>
 }
 
 impl <'a> RenderCanvas for ColoredBoard<'a> {
@@ -190,7 +210,7 @@ impl <'a> RenderCanvas for ColoredBoard<'a> {
             for x in 0..self.board.width {
                 let color = match self.board.get_state_on_position(&Position { x, y }).unwrap() {
                     crate::game::State::Free => Color::Gray,
-                    crate::game::State::Occupied(player_id) => *self.colors.get(&player_id).unwrap()
+                    crate::game::State::Occupied(player_id) => self.colors.get(&player_id).unwrap().0
                 };
                 line.push(Span::styled(BLOCK, Style::default().fg(color)))
             }

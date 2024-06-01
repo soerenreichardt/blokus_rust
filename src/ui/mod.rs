@@ -6,6 +6,7 @@ use crossterm::{
     ExecutableCommand,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use ratatui::layout::Position;
 use ratatui::prelude::*;
 
 use crate::game::Game;
@@ -21,6 +22,8 @@ mod piece_module;
 const BLOCK: &str = "██";
 const SHADED_BLOCK: &str = "░░";
 const UI_OFFSET: u16 = 2;
+
+const COLORS: [Color; 4] = [Color::Blue, Color::Yellow, Color::Red, Color::Green];
 
 #[derive(Default)]
 struct App {
@@ -44,7 +47,7 @@ pub(crate) enum ModuleKind {
     Piece
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct Cursor {
     area: Rect,
     max_x: u16,
@@ -60,9 +63,10 @@ pub(crate) enum AppEvent {
     MoveRight,
     OpenPieceSelection,
     PieceSelected(usize),
+    PiecePlaced,
     Select,
     Rotate,
-    PiecePlaced,
+    PlayerSwitched(usize),
     None
 }
 
@@ -73,7 +77,7 @@ pub fn run(game: &mut Game) -> io::Result<()> {
     let mut event_queue = VecDeque::new();
     let mut app = App::default();
 
-    app.add_module(BoardDisplay::new(game.width(), game.height()));
+    app.add_module(BoardDisplay::new(game.width(), game.height(), game.active_player_index()));
     app.add_module(PlayerDisplay);
     app.add_module(PieceDisplay::new());
 
@@ -150,11 +154,21 @@ impl App {
 }
 
 impl Cursor {
-    fn simple(max_x: u16, max_y: u16) -> Self {
+    fn simple(corner: Corner, max_x: u16, max_y: u16) -> Self {
+        let start_position = Cursor::start_position(corner, max_x, max_y);
         Cursor {
             max_x,
             max_y,
-            area: Rect::new(0, 0, 1, 1)
+            area: Rect::new(start_position.x, start_position.y, 1, 1)
+        }
+    }
+
+    fn start_position(corner: Corner, max_x: u16, max_y: u16) -> Position {
+        match corner {
+            Corner::TopLeft => Position { x: 0, y: 0 },
+            Corner::TopRight => Position { x: max_x - 1, y: 0 },
+            Corner::BottomLeft => Position { x: 0, y: max_y - 1 },
+            Corner::BottomRight => Position { x: max_x - 1, y: max_y - 1 }
         }
     }
 
