@@ -164,27 +164,44 @@ impl Cursor {
         }
     }
 
-    fn move_down(&mut self) {
-        if self.area.y < self.max_y - self.area.height {
-            self.area.y += 1
+    fn move_down(&mut self, distance: u16) {
+        if self.area.y <= self.max_y - self.area.height - distance {
+            self.area.y += distance
+        } else {
+            self.area.y = self.max_y - self.area.height
         }
     }
 
-    fn move_up(&mut self) {
-        if self.area.y > 0 {
-            self.area.y -= 1
+    fn move_up(&mut self, distance: u16) {
+        if self.area.y >= distance {
+            self.area.y -= distance
+        } else {
+            self.area.y = 0
         }
     }
 
-    fn move_right(&mut self) {
-        if self.area.x < self.max_x - self.area.width {
-            self.area.x += 1
+    fn move_right(&mut self, distance: u16) {
+        if self.area.x <= self.max_x - self.area.width - distance {
+            self.area.x += distance
+        } else {
+            self.area.x = self.max_x - self.area.width
         }
     }
 
-    fn move_left(&mut self) {
-        if self.area.x > 0 {
-            self.area.x -= 1
+    fn move_left(&mut self, distance: u16) {
+        if self.area.x >= distance {
+            self.area.x -= distance
+        } else {
+            self.area.x = 0
         }
+    }
+
+    fn move_cursor(&mut self, x: i32, y: i32) {
+        if x < 0 { self.move_left(x.abs() as u16) } else { self.move_right(x as u16) }
+        if y < 0 { self.move_up(y.abs() as u16) } else { self.move_down(y as u16) }
+    }
+
+    fn rotate_cursor(&mut self) {
+        std::mem::swap(&mut self.area.width, &mut self.area.height);
     }
 }

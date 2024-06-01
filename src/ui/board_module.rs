@@ -69,7 +69,10 @@ impl BoardDisplay {
 
     fn rotate_piece(&mut self) {
         if let State::PieceSelected(indexed_piece) = &mut self.state {
+            self.cursor.move_cursor(-(indexed_piece.piece.bounding_box_offset.x as i32), -(indexed_piece.piece.bounding_box_offset.y as i32));
             indexed_piece.rotate();
+            self.cursor.rotate_cursor();
+            self.cursor.move_cursor(indexed_piece.piece.bounding_box_offset.x as i32, indexed_piece.piece.bounding_box_offset.y as i32);
         }
     }
 
@@ -100,10 +103,10 @@ impl Module for BoardDisplay {
             }
         } else {
             match event {
-                AppEvent::MoveUp => self.cursor.move_up(),
-                AppEvent::MoveDown => self.cursor.move_down(),
-                AppEvent::MoveLeft => self.cursor.move_left(),
-                AppEvent::MoveRight => self.cursor.move_right(),
+                AppEvent::MoveUp => self.cursor.move_up(1),
+                AppEvent::MoveDown => self.cursor.move_down(1),
+                AppEvent::MoveLeft => self.cursor.move_left(1),
+                AppEvent::MoveRight => self.cursor.move_right(1),
                 AppEvent::OpenPieceSelection => self.state = State::Disabled,
                 AppEvent::Rotate => self.rotate_piece(),
                 AppEvent::Select => self.place_piece(game),
