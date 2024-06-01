@@ -135,9 +135,8 @@ impl<'a> RenderCanvas for RenderPiece<'a> {
 
         let mut canvas = vec![vec![empty_tile; num_columns]; num_lines];
         let color = if self.position == self.selection_index { Color::Blue } else { Color::Gray };
-        for block in self.piece.blocks.iter() {
-            let raw_position = block - &self.piece.bounding_box_offset;
-            canvas[raw_position.y as usize][raw_position.x as usize] = Span::styled(BLOCK, Style::default().fg(color))
+        for block in self.piece.blocks() {
+            canvas[block.y as usize][block.x as usize] = Span::styled(BLOCK, Style::default().fg(color))
         }
         canvas.into_iter().map(|line| line.into()).collect()
     }
