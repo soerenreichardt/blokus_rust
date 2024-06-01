@@ -67,11 +67,20 @@ impl BoardDisplay {
         self.state = State::PieceSelected(IndexedPiece { piece, index, rotations: 0 });
     }
 
+    /// As pieces are centered in a rectangular bounding box, the blocks that belong to a piece
+    /// are not necessarily in the top left corner of the bounding box. Pieces are rendered with
+    /// this offset in mind. When rotating a piece, the cursor must be moved to counteract the
+    /// offset, then the piece is rotated, and finally the cursor is moved back according to the
+    /// new offset.
     fn rotate_piece(&mut self) {
         if let State::PieceSelected(indexed_piece) = &mut self.state {
+            // unapply the cursor offset
             self.cursor.move_cursor(-(indexed_piece.piece.bounding_box_offset.x as i32), -(indexed_piece.piece.bounding_box_offset.y as i32));
+
             indexed_piece.rotate();
+            // swap the width and height
             self.cursor.rotate_cursor();
+            // reapply the cursor offset with the rotated piece
             self.cursor.move_cursor(indexed_piece.piece.bounding_box_offset.x as i32, indexed_piece.piece.bounding_box_offset.y as i32);
         }
     }
