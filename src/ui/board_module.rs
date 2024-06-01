@@ -93,14 +93,16 @@ impl BoardDisplay {
         }
     }
 
-    fn place_piece(&mut self, game: &mut Game) {
+    fn place_piece(&mut self, game: &mut Game) -> Option<AppEvent> {
         match &self.state {
             State::PieceSelected(indexed_piece) => if game.place_piece(indexed_piece.index, indexed_piece.rotations, Position { x: self.cursor.area.x, y: self.cursor.area.y }).expect("Out of bounds") {
-                self.state = State::Default
+                self.state = State::Default;
+                Some(AppEvent::PiecePlaced)
             } else {
+                None
                 // render failure animation
             }
-            _ => ()
+            _ => None
         }
     }
 
@@ -126,7 +128,7 @@ impl Module for BoardDisplay {
                 AppEvent::MoveRight => self.cursor.move_right(1),
                 AppEvent::OpenPieceSelection => self.state = State::Disabled,
                 AppEvent::Rotate => self.rotate_piece(),
-                AppEvent::Select => self.place_piece(game),
+                AppEvent::Select => return self.place_piece(game),
                 _ => ()
             }
         }

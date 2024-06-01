@@ -48,6 +48,12 @@ impl PieceDisplay {
         }
     }
 
+    fn reset_cursor(&mut self) {
+        self.cursor.area.y = 0;
+        self.cursor.area.x = 0;
+        self.selection_index = 0;
+    }
+
     fn update_cursor_dimensions(&mut self, piece: &Piece) {
         self.cursor.area.height = piece.num_lines();
         self.cursor.area.width = piece.num_columns();
@@ -61,14 +67,17 @@ impl PieceDisplay {
 
 impl Module for PieceDisplay {
     fn update(&mut self, event: AppEvent, game: &mut Game) -> Option<AppEvent> {
-        if let AppEvent::OpenPieceSelection = event {
-            self.enabled = true
+        match event {
+            AppEvent::OpenPieceSelection => self.enabled = true,
+            AppEvent::PiecePlaced => self.reset_cursor(),
+            _ => ()
         }
         if self.enabled {
             match event {
                 AppEvent::MoveDown => self.move_cursor_down(game),
                 AppEvent::MoveUp => self.move_cursor_up(game),
                 AppEvent::Select => return Some(AppEvent::PieceSelected(self.select_piece())),
+                AppEvent::PiecePlaced => self.reset_cursor(),
                 _ => ()
             }
         }

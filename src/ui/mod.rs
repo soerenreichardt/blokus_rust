@@ -62,6 +62,7 @@ pub(crate) enum AppEvent {
     PieceSelected(usize),
     Select,
     Rotate,
+    PiecePlaced,
     None
 }
 

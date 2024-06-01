@@ -9,7 +9,10 @@ mod ui;
 
 fn main() -> io::Result<()>{
     let piece_set = read_piece_set().unwrap();
-    let players = Players::new(vec![Player { name: "Bob".to_string(), color: Color::Green, secondary_color: Color::LightGreen, available_pieces: piece_set.clone() }]);
+    let players = Players::new(vec![
+        Player { name: "Bob".to_string(), color: Color::Green, secondary_color: Color::LightGreen, available_pieces: piece_set.clone() },
+        Player { name: "Alice".to_string(), color: Color::Blue, secondary_color: Color::LightBlue, available_pieces: piece_set.clone() }
+    ]);
     let mut game = Game::new(16, 16, players);
     ui::run(&mut game)
 }

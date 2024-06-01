@@ -24,7 +24,7 @@ pub struct Players {
     active_player_index: usize
 }
 
-#[derive(Default)]
+#[derive(Default, PartialEq)]
 pub struct Player {
     pub name: String,
     pub color: Color,
@@ -32,7 +32,7 @@ pub struct Player {
     pub available_pieces: Vec<Piece>
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Piece {
     blocks: Vec<Position>,
     pivot: f32,
@@ -75,11 +75,12 @@ impl Game {
         let player_index = self.players.active_player_index;
         let mut piece = self.active_player_mut().take_piece(piece_index);
         (0..rotations).for_each(|_| piece.rotate());
-        if let Some(mut piece) = self.board.place_piece(piece, position, player_index)? {
-            (0..4-rotations).for_each(|_| piece.rotate());
-            self.active_player_mut().insert_piece(piece_index, piece);
+        if let Some(piece) = self.board.place_piece(piece, position, player_index)? {
+            self.return_piece_to_list(piece_index, rotations, piece);
             return Ok(false)
         }
+
+        self.switch_to_next_player();
         Ok(true)
     }
 
@@ -93,6 +94,15 @@ impl Game {
             .enumerate()
             .map(|(id, player)| (id, player.color))
             .collect::<HashMap<usize, Color>>()
+    }
+
+    fn switch_to_next_player(&mut self) {
+        self.players.switch_to_next_player()
+    }
+
+    fn return_piece_to_list(&mut self, piece_index: usize, rotations: u16, mut piece: Piece) {
+        (0..4 - rotations).for_each(|_| piece.rotate());
+        self.active_player_mut().insert_piece(piece_index, piece);
     }
 
     fn active_player_mut(&mut self) -> &mut Player {
@@ -252,6 +262,10 @@ impl Players {
             players,
             active_player_index
         }
+    }
+
+    pub fn switch_to_next_player(&mut self) {
+        self.active_player_index = (self.active_player_index + 1) % self.players.len();
     }
 }
 
