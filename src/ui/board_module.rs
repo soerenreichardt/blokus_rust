@@ -1,3 +1,4 @@
+use std::ops::Add;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Line, Span, Style};
@@ -46,7 +47,7 @@ impl BoardDisplay {
     fn render_piece_cursor(&self, lines: &mut [Line<'_>], indexed_piece: &IndexedPiece) {
         let piece = &indexed_piece.piece;
         let cursor_position = &self.cursor.area;
-        for block in piece.blocks.iter() {
+        for block in piece.blocks() {
             let line = (cursor_position.y + block.y) as usize;
             let column = (cursor_position.x + block.x) as usize;
             lines[line].spans[column] = Span::styled(BLOCK, Style::default().fg(Color::Red));
@@ -67,8 +68,8 @@ impl BoardDisplay {
     }
 
     fn rotate_piece(&mut self) {
-        if let State::PieceSelected(piece_index) = &mut self.state {
-            piece_index.rotate()
+        if let State::PieceSelected(indexed_piece) = &mut self.state {
+            indexed_piece.rotate();
         }
     }
 

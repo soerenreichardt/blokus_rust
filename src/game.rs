@@ -1,3 +1,5 @@
+use std::iter::Map;
+use std::slice::Iter;
 use rand::random;
 use ratatui::style::Color;
 
@@ -32,7 +34,7 @@ pub struct Player {
 
 #[derive(Clone, Debug)]
 pub struct Piece {
-    pub(crate) blocks: Vec<Position>,
+    blocks: Vec<Position>,
     pivot: f32,
     num_lines: u16,
     num_columns: u16,
@@ -104,8 +106,8 @@ impl Board {
             return Ok(Some(piece))
         }
 
-        for local_position in piece.blocks.iter() {
-            let board_position = local_position + &offset;
+        for local_position in piece.blocks() {
+            let board_position = &local_position + &offset;
             self.occupy_position(&board_position, player_index)?
         }
 
@@ -123,8 +125,8 @@ impl Board {
     }
 
     fn piece_can_be_placed(&self, piece: &Piece, offset: &Position) -> bool {
-        for local_position in piece.blocks.iter() {
-            let board_position = local_position + offset;
+        for local_position in piece.blocks() {
+            let board_position = &local_position + offset;
             match self.get_state_on_position(&board_position).unwrap() {
                 State::Free => (),
                 State::Occupied(_) => return false
@@ -193,12 +195,19 @@ impl Piece {
         Piece { blocks, pivot, num_lines, num_columns, bounding_box_offset }
     }
 
+    pub fn blocks(&self) -> impl Iterator<Item = Position> + '_ {
+        self.blocks.iter().map(|block| block - &self.bounding_box_offset)
+    }
+
     pub fn rotate(&mut self) {
         for block in self.blocks.iter_mut() {
             block.rotate_around_pivot(self.pivot);
         }
         std::mem::swap(&mut self.num_columns, &mut self.num_lines);
-        std::mem::swap(&mut self.bounding_box_offset.x, &mut self.bounding_box_offset.y);
+        self.bounding_box_offset = Position {
+            x: Self::min_x(&self.blocks),
+            y: Self::min_y(&self.blocks)
+        }
     }
 
     pub fn num_lines(&self) -> u16 {
