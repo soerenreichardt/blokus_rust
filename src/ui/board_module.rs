@@ -1,13 +1,12 @@
 use std::collections::HashMap;
-use std::iter::Map;
-use std::ops::Add;
+
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::prelude::{Color, Line, Span, Style};
+use ratatui::prelude::{Color, Line, Span, Style, Stylize};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 
-use crate::game::{Board, Game, Piece, Position};
-use crate::ui::{AppEvent, BLOCK, Cursor, Module, ModuleKind, RenderCanvas, UI_OFFSET};
+use crate::game::{Board, Game, Piece, Player, Position};
+use crate::ui::{AppEvent, BLOCK, Cursor, Module, ModuleKind, RenderCanvas, SHADED_BLOCK, UI_OFFSET};
 use crate::ui::scrollbars::VerticalScrollBar;
 
 pub struct BoardDisplay {
@@ -38,21 +37,28 @@ impl BoardDisplay {
         }
     }
 
-    pub fn render_cursor(&mut self, lines: &mut [Line<'_>]) {
+    pub fn render_cursor(&mut self, lines: &mut [Line<'_>], board: &Board, color_map: &HashMap<usize, Color>, player: &Player) {
         match &self.state {
-            State::PieceSelected(indexed_piece) => self.render_piece_cursor(lines, indexed_piece),
+            State::PieceSelected(indexed_piece) => self.render_piece_cursor(lines, indexed_piece, board, color_map, player),
             State::Default => self.render_simple_cursor(lines),
             _ => ()
         }
     }
 
-    fn render_piece_cursor(&self, lines: &mut [Line<'_>], indexed_piece: &IndexedPiece) {
+    fn render_piece_cursor(&self, lines: &mut [Line<'_>], indexed_piece: &IndexedPiece, board: &Board, color_map: &HashMap<usize, Color>, player: &Player) {
         let piece = &indexed_piece.piece;
         let cursor_position = &self.cursor.area;
         for block in piece.blocks() {
             let line = (cursor_position.y + block.y) as usize;
             let column = (cursor_position.x + block.x) as usize;
-            lines[line].spans[column] = Span::styled(BLOCK, Style::default().fg(Color::Red));
+            let content = match board.get_state_on_position(&Position { x: column as u16, y: line as u16 }).expect("Out of bounds") {
+                crate::game::State::Free => Span::styled(BLOCK, Style::default().fg(player.secondary_color)),
+                crate::game::State::Occupied(player_index) => {
+                    let color = *color_map.get(&player_index).unwrap();
+                    Span::styled(SHADED_BLOCK, Style::default().fg(Color::Red).bg(color))
+                }
+            };
+            lines[line].spans[column] = content;
         }
     }
 
@@ -137,17 +143,20 @@ impl Module for BoardDisplay {
         let board_render_area = Rect { x: area.x, y: area.y, width, height};
         self.vertical_scrollbar.update_scrollbar(board_render_area, &self.cursor);
 
-        let colored_board = ColoredBoard { board: &game.board, colors: game.get_color_map() };
+        let board = &game.board;
+        let color_map = game.get_color_map();
+        let colored_board = ColoredBoard { board, colors: &color_map };
         let mut lines = colored_board.render();
 
         if self.is_enabled() {
-            self.render_cursor(&mut lines);
+            self.render_cursor(&mut lines, board, &color_map, game.active_player());
         }
 
         let border_color = if self.is_enabled() { Color::default() } else { Color::Gray };
 
         frame.render_widget(
             Paragraph::new(lines)
+                .not_underlined()
                 .scroll((self.vertical_scrollbar.offset(), 0))
                 .block(Block::default()
                     .title("Board")
@@ -168,7 +177,7 @@ impl Module for BoardDisplay {
 
 struct ColoredBoard<'a> {
     board: &'a Board,
-    colors: HashMap<usize, Color>
+    colors: &'a HashMap<usize, Color>
 }
 
 impl <'a> RenderCanvas for ColoredBoard<'a> {

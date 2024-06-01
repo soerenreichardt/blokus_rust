@@ -19,6 +19,7 @@ mod player_module;
 mod piece_module;
 
 const BLOCK: &str = "██";
+const SHADED_BLOCK: &str = "░░";
 const UI_OFFSET: u16 = 2;
 
 #[derive(Default)]

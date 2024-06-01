@@ -28,6 +28,7 @@ pub struct Players {
 pub struct Player {
     pub name: String,
     pub color: Color,
+    pub secondary_color: Color,
     pub available_pieces: Vec<Piece>
 }
 
